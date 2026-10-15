@@ -1,3 +1,4 @@
+from django.middleware.csrf import get_token
 from rest_framework import views, viewsets, status, permissions
 from rest_framework.response import Response
 from django.contrib.auth import login, logout
@@ -120,3 +121,10 @@ class UserViewSet(viewsets.ModelViewSet):
             before_state=before_state
         )
         instance.delete()
+class CSRFTokenView(views.APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        return Response({
+            "csrfToken": get_token(request)
+        })

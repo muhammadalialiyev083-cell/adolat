@@ -3,7 +3,13 @@ from django.urls import path, include
 from django.http import JsonResponse
 from rest_framework.routers import DefaultRouter
 
-from apps.authentication.views import LoginView, LogoutView, MeView, UserViewSet
+from apps.authentication.views import (
+    LoginView,
+    LogoutView,
+    MeView,
+    UserViewSet,
+    CSRFTokenView,
+)
 from apps.organizations.views import OrganizationViewSet, DepartmentViewSet, ServiceViewSet
 from apps.core.views import AuditLogViewSet
 from apps.processes.views import BusinessProcessViewSet, AssetViewSet, DependencyViewSet
@@ -50,6 +56,7 @@ urlpatterns = [
     path('api/v1/auth/login', LoginView.as_view(), name='auth-login'),
     path('api/v1/auth/logout', LogoutView.as_view(), name='auth-logout'),
     path('api/v1/auth/me', MeView.as_view(), name='auth-me'),
+    path('api/v1/auth/csrf', CSRFTokenView.as_view(), name='auth-csrf'),
 
     # Hisoblash yadrosi tahlil endpointlari (FR-07, FR-08)
     path('api/v1/analyses/priority', PriorityAnalysisView.as_view(), name='analysis-priority'),

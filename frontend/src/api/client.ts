@@ -1,8 +1,31 @@
 const API_BASE = '/api/v1';
+let csrfToken: string | null = null;
+
+async function getCSRFToken(): Promise<string> {
+  if (csrfToken) return csrfToken;
+
+  const response = await fetch(`${API_BASE}/auth/csrf`, {
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    throw new Error('CSRF token olinmadi');
+  }
+
+  const data = await response.json();
+  csrfToken = data.csrfToken;
+  return csrfToken!;
+}
 
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const headers = new Headers(options.headers || {});
   headers.set('Content-Type', 'application/json');
+  const method = (options.method || 'GET').toUpperCase();
+
+if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
+  const token = await getCSRFToken();
+  headers.set('X-CSRFToken', token);
+}
 
   const config: RequestInit = {
     ...options,
