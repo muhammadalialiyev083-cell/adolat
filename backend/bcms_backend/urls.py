@@ -1,5 +1,6 @@
 from django.contrib import admin
 from django.urls import path, include
+from django.http import JsonResponse
 from rest_framework.routers import DefaultRouter
 
 from apps.authentication.views import LoginView, LogoutView, MeView, UserViewSet
@@ -35,10 +36,15 @@ router.register(r'plans', ContinuityPlanViewSet, basename='plan')
 router.register(r'scenarios', ScenarioViewSet, basename='scenario')
 router.register(r'exercises', ExerciseViewSet, basename='exercise')
 
-from django.views.generic import TemplateView
+def home(request):
+    return JsonResponse({
+        "status": "ok",
+        "service": "BCMS Backend",
+        "message": "API server is running"
+    })
 
 urlpatterns = [
-    path('', TemplateView.as_view(template_name='index.html'), name='frontend-home'),
+    path('', home, name='home'),
     path('admin/', admin.site.urls),
     # Autentifikatsiya (FR-01)
     path('api/v1/auth/login', LoginView.as_view(), name='auth-login'),
