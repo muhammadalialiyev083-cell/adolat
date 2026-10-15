@@ -1,0 +1,21 @@
+{
+
+"env": {
+"ANTHROPIC_BASE_URL": "https://codecraftapi.com/dashboard/api-keys",
+"ANTHROPIC_AUTH_TOKEN": "cc_9GBjWat4CZ60J1gkXUgYrnRTuWqzGaKCfUhNxAzuftlSuhOZ",
+"ANTHROPIC_MODEL": "claude-opus-4-8"
+},
+"modelOverrides": {
+"claude-opus-4-8": "claude-opus-4-8",
+"claude-opus-4-8-thinking": "claude-opus-4-8",
+"claude-opus-5": "claude-opus-4-8",
+"claude-opus-5-thinking": "claude-opus-4-8"
+},
+
+"effortLevel": "xhigh",
+"modelSettings": {
+"claude-opus-4-8": {
+"effortLevel": "xhigh"
+}
+}
+}
