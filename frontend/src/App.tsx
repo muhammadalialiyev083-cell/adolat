@@ -1523,12 +1523,7 @@ export function App() {
         const user = await api.getMe();
         setCurrentUser(user);
       } catch {
-        try {
-          const res = await api.login({ username: 'bcms_manager', password: 'Admin123!' });
-          setCurrentUser(res.user);
-        } catch {
-          // wait for manual login
-        }
+        // Sessiya yo'q — qo'lda kirish kutiladi (avtomatik demo login yo'q)
       } finally {
         setLoginLoading(false);
       }
@@ -1574,11 +1569,8 @@ export function App() {
     setLoading(true);
     try {
       await api.logout().catch(() => {});
-      const res = await api.login({ username, password: 'Admin123!' });
-      setCurrentUser(res.user);
-      showToast(`Foydalanuvchi: ${res.user.username} (${res.user.role_display})`);
-    } catch {
-      showToast("Foydalanuvchini almashtirishda xatolik", 'error');
+      setCurrentUser(null); // Parolsiz hisob almashish taqiqlanadi — qo'lda kirish
+      showToast(`Hisobni almashtirish uchun "${username}" bilan tizimga qayta kiring.`);
     } finally {
       setLoading(false);
     }

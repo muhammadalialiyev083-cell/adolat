@@ -23,7 +23,7 @@ class Command(BaseCommand):
             defaults={'head_name': "Admin"}
         )
 
-        default_password = os.environ.get("DEMO_USER_PASSWORD", "ChangeMe123!")
+        default_password = os.environ.get("DEMO_USER_PASSWORD", "Admin123!")  # seed_demo_data bilan bir xil
 
         users = [
             {
