@@ -1,11 +1,41 @@
+
 from pathlib import Path
 import os
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-bcms-designer-secure-key-2026')
-DEBUG = True
-ALLOWED_HOSTS = ['*']
+# ==============================
+# SECURITY
+# ==============================
+
+SECRET_KEY = os.environ.get("SECRET_KEY", "django-insecure-bcms-designer-dev-key")
+
+DEBUG = os.environ.get("DEBUG", "False").lower() == "true"
+
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.environ.get(
+        "ALLOWED_HOSTS",
+        "adolat-99us.onrender.com,localhost,127.0.0.1"
+    ).split(",")
+    if host.strip()
+]
+
+CSRF_TRUSTED_ORIGINS = [
+    "https://adolat-99us.onrender.com",
+    "https://safeguardity.netlify.app",
+]
+
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+SESSION_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SECURE = not DEBUG
+SESSION_COOKIE_SAMESITE = 'None'
+CSRF_COOKIE_SAMESITE = 'None'
+
+# ==============================
+# APPLICATIONS
+# ==============================
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -14,11 +44,11 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    # Third party
+
     'rest_framework',
     'rest_framework.authtoken',
     'corsheaders',
-    # BCMS Modular Monolith Apps
+
     'apps.core',
     'apps.organizations',
     'apps.authentication',
@@ -31,9 +61,14 @@ INSTALLED_APPS = [
     'apps.reports',
 ]
 
+# ==============================
+# MIDDLEWARE
+# ==============================
+
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -44,10 +79,14 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = 'bcms_backend.urls'
 
+# ==============================
+# TEMPLATES
+# ==============================
+
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR.parent / 'frontend' / 'dist'],
+        'DIRS': [],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -61,6 +100,10 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'bcms_backend.wsgi.application'
 
+# ==============================
+# DATABASE
+# ==============================
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
@@ -68,26 +111,53 @@ DATABASES = {
     }
 }
 
-# Foydalanuvchi modeli
 AUTH_USER_MODEL = 'authentication.User'
 
 AUTH_PASSWORD_VALIDATORS = [
-    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
+    {
+        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'
+    },
 ]
+
+# ==============================
+# LOCALIZATION
+# ==============================
 
 LANGUAGE_CODE = 'uz'
 TIME_ZONE = 'Asia/Tashkent'
 USE_I18N = True
 USE_TZ = True
 
-STATIC_URL = '/assets/'
-STATICFILES_DIRS = [
-    BASE_DIR.parent / 'frontend' / 'dist' / 'assets',
-]
+# ==============================
+# STATIC FILES
+# ==============================
+
+STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+STORAGES = {
+    'default': {
+        'BACKEND': 'django.core.files.storage.FileSystemStorage',
+    },
+    'staticfiles': {
+        'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
+    },
+}
+
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# ==============================
+# DJANGO REST FRAMEWORK
+# ==============================
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
@@ -101,5 +171,19 @@ REST_FRAMEWORK = {
     'PAGE_SIZE': 50,
 }
 
-CORS_ALLOW_ALL_ORIGINS = True
+# ==============================
+# CORS
+# ==============================
+
+CORS_ALLOW_ALL_ORIGINS = False
+
+CORS_ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.environ.get(
+        "CORS_ALLOWED_ORIGINS",
+        "https://safeguardity.netlify.app"
+    ).split(",")
+    if origin.strip()
+]
+
 CORS_ALLOW_CREDENTIALS = True

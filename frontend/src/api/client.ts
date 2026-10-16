@@ -74,6 +74,7 @@ export const api = {
   // Processes & Assets
   getProcesses: () => request<{ results: any[] }>('/processes/'),
   createProcess: (data: any) => request<any>('/processes/', { method: 'POST', body: JSON.stringify(data) }),
+  getServices: () => request<{ results: any[] }>('/services/'),
   getAssets: () => request<{ results: any[] }>('/assets/'),
   getDependencies: () => request<{ results: any[] }>('/dependencies/'),
 

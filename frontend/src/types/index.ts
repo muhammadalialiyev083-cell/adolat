@@ -16,6 +16,15 @@ export interface User {
   };
 }
 
+export interface Service {
+  id: number;
+  organization: number;
+  name: string;
+  description?: string;
+  owner?: number;
+  owner_name?: string;
+}
+
 export interface BusinessProcess {
   id: number;
   name: string;

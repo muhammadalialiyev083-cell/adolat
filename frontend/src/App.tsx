@@ -9,7 +9,7 @@ import {
 import { api } from './api/client';
 import type {
   BusinessProcess, Asset, BIAAssessment, Risk,
-  ContinuityPlan, DashboardSummary, AuditLog
+  ContinuityPlan, DashboardSummary, AuditLog, Service
 } from './types';
 
 /* ────────────────────────────────────────────────
@@ -399,12 +399,12 @@ function DashboardTab({ dashboard, processes, bias, risks }: {
             <div className="card-subtitle">FR-03 va FR-05 bo'yicha eng muhim jarayonlar va ularning BIA holati</div>
           </div>
           <a
-            href="/api/v1/reports/organization/export_excel"
+            href="/api/v1/reports/organization"
             target="_blank"
             rel="noreferrer"
             className="btn btn-secondary btn-sm"
           >
-            <Download size={13} /> Tashkilot Excel Hisoboti
+            <Download size={13} /> Tashkilot Hisoboti
           </a>
         </div>
         {processes.length === 0 ? (
@@ -1039,14 +1039,6 @@ function PlansTab({ plans, currentUser, onPublishPlan }: {
                 >
                   <Download size={13} /> PDF Eksport
                 </a>
-                <a
-                  href={`/api/v1/plans/${pl.id}/export_excel/`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="btn btn-secondary btn-sm"
-                >
-                  <Download size={13} /> Excel Eksport
-                </a>
               </div>
             </div>
 
@@ -1143,8 +1135,80 @@ function AuditTab({ auditLogs }: { auditLogs: AuditLog[] }) {
 }
 
 /* ────────────────────────────────────────────────
+   LOGIN FORM (shown when not authenticated)
+────────────────────────────────────────────────── */
+function LoginForm({ onLogin }: { onLogin: (user: any) => void }) {
+  const [username, setUsername] = useState('bcms_manager');
+  const [password, setPassword] = useState('Admin123!');
+  const [loggingIn, setLoggingIn] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoggingIn(true);
+    setError('');
+    try {
+      const res = await api.login({ username, password });
+      onLogin(res.user);
+    } catch (err: any) {
+      setError(err.message || 'Login xatolik yuz berdi. Foydalanuvchi nomi yoki parol noto\'g\'ri.');
+    } finally {
+      setLoggingIn(false);
+    }
+  };
+
+  return (
+    <div className="app-shell" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
+      <div className="modal-panel" style={{ width: '100%', maxWidth: 400, padding: 24 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+          <Shield size={24} color="#60A5FA" />
+          <div style={{ fontWeight: 800, fontSize: 18, color: 'var(--color-text-primary)' }}>BCMS Designer</div>
+        </div>
+        <div style={{ fontSize: 13, color: 'var(--color-text-secondary)', marginBottom: 24 }}>
+          Tizimga kirish uchun foydalanuvchi nomi va parolni kiriting
+        </div>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div className="form-group">
+            <label className="form-label">Foydalanuvchi nomi</label>
+            <input
+              type="text"
+              className="input-field"
+              value={username}
+              onChange={e => setUsername(e.target.value)}
+              autoFocus
+            />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Parol</label>
+            <input
+              type="password"
+              className="input-field"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+            />
+          </div>
+          {error && (
+            <div style={{ color: 'var(--color-critical-text)', fontSize: 12, marginBottom: 8, textAlign: 'center' }}>{error}</div>
+          )}
+          <button
+            className="btn btn-primary"
+            type="submit"
+            disabled={loggingIn}
+          >
+            {loggingIn ? 'Kirish...' : 'Tizimga kirish'}
+          </button>
+          <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 12, textAlign: 'center' }}>
+            Demo hisoblar: admin / bcms_manager / director (parol: Admin123!)
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+/* ────────────────────────────────────────────────
    PAGE HEADER
-──────────────────────────────────────────────── */
+────────────────────────────────────────────────── */
 const PAGE_META: Record<TabKey, { title: string; desc: string; icon: React.ElementType }> = {
   dashboard:  { title: 'Tashkilot Uzluksizligi Holati', desc: 'FR-11: Asosiy KPI ko\'rsatkichlar, kritik jarayonlar va RPO bo\'shliqlari konsolidatsiyasi', icon: BarChart3 },
   processes:  { title: 'Biznes Jarayonlar & Aktivlar', desc: 'FR-03, FR-04: Jarayonlar reestri, aktivlar va bog\'liqliklar grafigi', icon: Layers },
@@ -1171,6 +1235,7 @@ export function App() {
   // Data
   const [dashboard, setDashboard]   = useState<DashboardSummary | null>(null);
   const [processes, setProcesses]   = useState<BusinessProcess[]>([]);
+  const [services, setServices]     = useState<Service[]>([]);
   const [assets, setAssets]         = useState<Asset[]>([]);
   const [bias, setBias]             = useState<BIAAssessment[]>([]);
   const [risks, setRisks]           = useState<Risk[]>([]);
@@ -1188,6 +1253,15 @@ export function App() {
   const [showNewProcessModal, setShowNewProcessModal] = useState(false);
   const [newProcName, setNewProcName]   = useState('');
   const [newProcCrit, setNewProcCrit]   = useState<'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW'>('HIGH');
+  const [newProcService, setNewProcService] = useState<number | null>(null);
+
+  // Login state
+  const [loginLoading, setLoginLoading] = useState(false);
+
+  const handleLogin = useCallback((user: any) => {
+    setCurrentUser(user);
+    setLoginLoading(false);
+  }, []);
 
   /* Toast helper */
   const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
@@ -1203,6 +1277,7 @@ export function App() {
   /* Auth init */
   useEffect(() => {
     (async () => {
+      setLoginLoading(true);
       try {
         const user = await api.getMe();
         setCurrentUser(user);
@@ -1210,7 +1285,11 @@ export function App() {
         try {
           const res = await api.login({ username: 'bcms_manager', password: 'Admin123!' });
           setCurrentUser(res.user);
-        } catch { /* wait */ }
+        } catch {
+          // wait for manual login
+        }
+      } finally {
+        setLoginLoading(false);
       }
     })();
   }, []);
@@ -1220,9 +1299,10 @@ export function App() {
     if (!currentUser) return;
     setLoading(true);
     try {
-      const [dRes, pRes, aRes, bRes, rRes, plRes, scRes, audRes] = await Promise.all([
+      const [dRes, pRes, sRes, aRes, bRes, rRes, plRes, scRes, audRes] = await Promise.all([
         api.getDashboard().catch(() => ({ summary: null })),
         api.getProcesses().catch(() => ({ results: [] })),
+        api.getServices().catch(() => ({ results: [] })),
         api.getAssets().catch(() => ({ results: [] })),
         api.getBIA().catch(() => ({ results: [] })),
         api.getRisks().catch(() => ({ results: [] })),
@@ -1232,6 +1312,7 @@ export function App() {
       ]);
       setDashboard((dRes as any).summary);
       setProcesses((pRes as any).results || []);
+      setServices((sRes as any).results || []);
       setAssets((aRes as any).results || []);
       setBias((bRes as any).results || []);
       setRisks((rRes as any).results || []);
@@ -1266,10 +1347,11 @@ export function App() {
     e.preventDefault();
     if (!newProcName.trim()) return;
     try {
-      await api.createProcess({ name: newProcName, criticality: newProcCrit, service: 1 });
+      await api.createProcess({ name: newProcName, criticality: newProcCrit, service: newProcService });
       showToast("Yangi biznes jarayon muvaffaqiyatli kiritildi!");
       setShowNewProcessModal(false);
       setNewProcName('');
+      setNewProcService(null);
       loadData();
     } catch (err: any) {
       showToast(err.message, 'error');
@@ -1329,6 +1411,10 @@ export function App() {
 
   /* Page meta */
   const meta = PAGE_META[activeTab];
+
+  if (!currentUser) {
+    return <LoginForm onLogin={handleLogin} />;
+  }
 
   return (
     <div className="app-shell">
@@ -1451,6 +1537,21 @@ export function App() {
                 <option value="LOW">Past — Uzilish maqbul</option>
               </select>
             </div>
+            {services.length > 0 && (
+              <div className="form-group">
+                <label className="form-label required">Xizmat</label>
+                <select
+                  value={newProcService || ''}
+                  onChange={e => setNewProcService(Number(e.target.value))}
+                  className="input-field"
+                >
+                  <option value="">Xizmatni tanlang</option>
+                  {services.map(s => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
           </form>
         </Modal>
       )}
