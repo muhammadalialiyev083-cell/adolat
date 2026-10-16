@@ -110,10 +110,10 @@ DATABASES = {
     "default": dj_database_url.config(
         default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
         conn_max_age=600,
-        conn_health_checks=True,
         ssl_require=bool(os.environ.get("DATABASE_URL")),
     )
 }
+DATABASES["default"]["CONN_HEALTH_CHECKS"] = True
 
 
 AUTH_USER_MODEL = 'authentication.User'

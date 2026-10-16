@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Shield, Activity, Layers, AlertTriangle, Cpu, FileText,
   PlayCircle, Clock, CheckCircle2, Download, Building,
   RefreshCw, PlusCircle, Sun, Moon, LogOut, ChevronRight,
   Database, BarChart3, Users, Settings, Zap, Target,
-  TrendingDown, GitBranch, BookOpen, X, Info, Check
+  TrendingDown, GitBranch, BookOpen, X, Info, Check,
+  Eye, EyeOff
 } from 'lucide-react';
 import { api } from './api/client';
 import type {
@@ -147,32 +149,40 @@ function Sidebar({ activeTab, setActiveTab, dashboard }: {
   dashboard: DashboardSummary | null;
 }) {
   return (
-    <aside className="app-sidebar">
+    <motion.aside
+      initial={{ x: -30 }}
+      animate={{ x: 0 }}
+      transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+      className="app-sidebar"
+    >
       {/* Brand Section */}
       <div style={{ padding: '8px 4px 20px', display: 'flex', alignItems: 'center', gap: 10 }}>
         <div className="brand-logo">
-          <Shield size={18} color="white" />
+          <AnimatedShield size={22} color="white" animate={false} />
         </div>
         <div>
-          <div style={{ fontWeight: 800, fontSize: 13, color: 'white', letterSpacing: '-0.02em' }}>BCMS Designer</div>
-          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', letterSpacing: '0.04em' }}>ISO 22301 Platform</div>
+          <div style={{ fontWeight: 800, fontSize: 13, color: 'white', letterSpacing: '-0.02em' }}>RiskGuard</div>
+          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', letterSpacing: '0.04em' }}>Business Continuity &amp; Risk Intelligence</div>
         </div>
       </div>
 
       <div className="nav-section-label">Asosiy Modullar</div>
 
-      {NAV_ITEMS.map(item => {
+      {NAV_ITEMS.map((item, idx) => {
         const Icon = item.icon;
         const hasAlert = (
           (item.key === 'risks' && dashboard && dashboard.high_risks_count > 0) ||
           (item.key === 'bia'   && dashboard && dashboard.rpo_gap_count > 0)
         );
         return (
-          <button
+          <motion.button
             key={item.key}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
             className={`nav-item ${activeTab === item.key ? 'active' : ''}`}
             onClick={() => setActiveTab(item.key)}
             title={item.frCode}
+            transition={{ duration: 0.2 }}
           >
             <Icon size={16} className="nav-icon" />
             <span style={{ flex: 1, fontSize: 13 }}>{item.label}</span>
@@ -181,21 +191,21 @@ function Sidebar({ activeTab, setActiveTab, dashboard }: {
                 {item.key === 'risks' ? dashboard?.high_risks_count : dashboard?.rpo_gap_count}
               </span>
             )}
-          </button>
+          </motion.button>
         );
       })}
 
       {/* Bottom: ISO Badge */}
       <div style={{ marginTop: 'auto', padding: '16px 8px 8px' }}>
         <div style={{
-          background: 'rgba(59,130,246,0.08)',
-          border: '1px solid rgba(59,130,246,0.2)',
+          background: 'rgba(255,79,36,0.08)',
+          border: '1px solid rgba(255,79,36,0.15)',
           borderRadius: 10,
           padding: '10px 12px',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-            <BookOpen size={12} color="#60A5FA" />
-            <span style={{ fontSize: 10, fontWeight: 700, color: '#60A5FA', letterSpacing: '0.06em' }}>STANDARTLAR ASOSI</span>
+            <BookOpen size={12} color="#FF4F24" />
+            <span style={{ fontSize: 10, fontWeight: 700, color: '#FF4F24', letterSpacing: '0.06em' }}>STANDARTLAR ASOSI</span>
           </div>
           <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', lineHeight: 1.6 }}>
             ISO 22301:2019<br />
@@ -205,7 +215,7 @@ function Sidebar({ activeTab, setActiveTab, dashboard }: {
           </div>
         </div>
       </div>
-    </aside>
+    </motion.aside>
   );
 }
 
@@ -237,7 +247,7 @@ function Header({ currentUser, onSwitchUser, onRefresh, loading, theme, onThemeT
             borderRadius: 8, padding: '5px 12px',
             fontSize: 12, color: 'var(--color-text-secondary)',
           }}>
-            <Building size={13} style={{ color: 'var(--color-accent-primary)', flexShrink: 0 }} />
+            <Building size={13} style={{ color: 'var(--color-brand-primary)', flexShrink: 0 }} />
             <span style={{ fontWeight: 600, color: 'var(--color-text-primary)', maxWidth: 240 }} className="truncate">
               {currentUser.organization_detail.name}
             </span>
@@ -284,7 +294,7 @@ function Header({ currentUser, onSwitchUser, onRefresh, loading, theme, onThemeT
           title="Ma'lumotlarni yangilash"
           disabled={loading}
         >
-          <RefreshCw size={15} className={loading ? 'animate-spin' : ''} style={{ color: loading ? 'var(--color-accent-primary)' : undefined }} />
+          <RefreshCw size={15} className={loading ? 'animate-spin' : ''} style={{ color: loading ? 'var(--color-brand-primary)' : undefined }} />
         </button>
 
         {/* Theme Toggle */}
@@ -375,21 +385,41 @@ function DashboardTab({ dashboard, processes, bias, risks }: {
       )}
 
       {/* Metrics Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.4 }}
+        style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}
+      >
         {metrics.map((m, i) => {
           const Icon = m.icon;
           return (
-            <div key={i} className="metric-card" style={{ '--metric-accent': m.accent, '--metric-accent-bg': m.accentBg } as React.CSSProperties}>
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: i * 0.08, ease: 'circOut' }}
+              className="metric-card"
+              style={{ '--metric-accent': m.accent, '--metric-accent-bg': m.accentBg } as React.CSSProperties}
+            >
               <div className="metric-icon">
                 <Icon size={18} style={{ color: m.accent }} />
               </div>
               <div className="metric-label">{m.label}</div>
-              <div className="metric-value" style={{ color: m.accent }}>{m.value}</div>
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.5, delay: i * 0.08 + 0.1, type: 'spring', stiffness: 300, damping: 20 }}
+                className="metric-value"
+                style={{ color: m.accent }}
+              >
+                {m.value}
+              </motion.div>
               <div className="metric-sub">{m.sub}</div>
-            </div>
+            </motion.div>
           );
         })}
-      </div>
+      </motion.div>
 
       {/* Processes Quick Table */}
       <div className="card">
@@ -741,22 +771,43 @@ function RisksTab({ risks }: { risks: Risk[] }) {
 }
 
 /* ────────────────────────────────────────────────
-   ENGINE TAB
-──────────────────────────────────────────────── */
+   HEADER
+────────────────────────────────────────────────── */
 function EngineTab({ algoInput, setAlgoInput, algoOutput, onRunAlgo, priorityResults, onRunPriority, loading }: {
   algoInput: any; setAlgoInput: (v: any) => void;
-  algoOutput: any; onRunAlgo: () => void;
+  algoOutput: any; onRunAlgo: () => void | Promise<void>;
   priorityResults: any; onRunPriority: () => void;
   loading: boolean;
 }) {
+  const [algoRunning, setAlgoRunning] = useState(false);
+
+  const handleRunAlgo = useCallback(async () => {
+    setAlgoRunning(true);
+    try {
+      await onRunAlgo();
+    } finally {
+      setAlgoRunning(false);
+    }
+  }, [onRunAlgo]);
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4 }}
+      style={{ display: 'flex', flexDirection: 'column', gap: 24 }}
+    >
       {/* Section 10.1 Tester */}
-      <div className="card">
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.05 }}
+        className="card"
+      >
         <div className="card-header">
           <div>
             <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Zap size={16} style={{ color: '#3B82F6' }} />
+              <Zap size={16} style={{ color: '#FF4F24' }} />
               Texnik Topshiriq 10.1 — Algoritm Sinovi
             </div>
             <div className="card-subtitle">FR-07: Risk Balli, RPO bo'shliq aniqlash va kuzatuv xulosalari</div>
@@ -771,7 +822,13 @@ function EngineTab({ algoInput, setAlgoInput, algoOutput, onRunAlgo, priorityRes
               { key: 'rpo_minutes',label: 'RPO (daqiqa)',     type: 'int' },
               { key: 'backup_interval', label: 'Backup interval (daqiqa)', type: 'int' },
             ].map(f => (
-              <div className="form-group" key={f.key}>
+              <motion.div
+                key={f.key}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: 0.05 }}
+                className="form-group"
+              >
                 <label className="form-label">{f.label}</label>
                 <input
                   type="number"
@@ -785,44 +842,108 @@ function EngineTab({ algoInput, setAlgoInput, algoOutput, onRunAlgo, priorityRes
                     setAlgoInput({ ...algoInput, [f.key]: val });
                   }}
                 />
-              </div>
+              </motion.div>
             ))}
           </div>
-          <button className="btn btn-primary" onClick={onRunAlgo}>
-            <Cpu size={15} /> Algoritmni Hisoblash
-          </button>
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={handleRunAlgo}
+            className={`btn btn-primary ${algoRunning ? 'pulse-once' : ''}`}
+            disabled={algoRunning}
+          >
+            {algoRunning ? <Cpu size={15} style={{ animation: 'spin 1s linear infinite' }} /> : <Cpu size={15} />}
+            {algoRunning ? ' Hisoblana Moqda...' : ' Algoritmni Hisoblash'}
+          </motion.button>
 
           {algoOutput && (
-            <div style={{ marginTop: 20 }}>
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+              style={{ marginTop: 20 }}
+            >
               {/* Human-readable result */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 14 }}>
-                <div className="metric-card" style={{ '--metric-accent': algoOutput.risk_class === 'high' ? '#EF4444' : algoOutput.risk_class === 'medium' ? '#F59E0B' : '#10B981', '--metric-accent-bg': 'rgba(59,130,246,0.08)' } as React.CSSProperties}>
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.4, delay: 0.1 }}
+                  className="metric-card"
+                  style={{ '--metric-accent': algoOutput.risk_class === 'high' ? '#FF4F24' : algoOutput.risk_class === 'medium' ? '#F59E0B' : '#10B981', '--metric-accent-bg': 'rgba(255,79,36,0.1)' } as React.CSSProperties}
+                >
                   <div className="metric-label">RISK BALLI</div>
-                  <div className="metric-value" style={{ color: algoOutput.risk_class === 'high' ? '#EF4444' : algoOutput.risk_class === 'medium' ? '#F59E0B' : '#10B981' }}>{algoOutput.risk_score}</div>
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.8 }}
+                    className="metric-value"
+                    style={{ color: algoOutput.risk_class === 'high' ? '#FF4F24' : algoOutput.risk_class === 'medium' ? '#F59E0B' : '#10B981' }}
+                  >
+                    {algoOutput.risk_score}
+                  </motion.div>
                   <div className="metric-sub">{algoOutput.risk_class?.toUpperCase()} darajasi</div>
-                </div>
-                <div className="metric-card" style={{ '--metric-accent': algoOutput.rpo_gap ? '#F59E0B' : '#10B981', '--metric-accent-bg': 'rgba(16,185,129,0.08)' } as React.CSSProperties}>
+                </motion.div>
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.4, delay: 0.15 }}
+                  className="metric-card"
+                  style={{ '--metric-accent': algoOutput.rpo_gap ? '#F59E0B' : '#10B981', '--metric-accent-bg': 'rgba(16,185,129,0.1)' } as React.CSSProperties}
+                >
                   <div className="metric-label">RPO BO'SHLIQ</div>
-                  <div className="metric-value" style={{ color: algoOutput.rpo_gap ? '#F59E0B' : '#10B981' }}>{algoOutput.rpo_gap ? 'MAVJUD' : 'YO\'Q'}</div>
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.8, delay: 0.1 }}
+                    className="metric-value"
+                    style={{ color: algoOutput.rpo_gap ? '#F59E0B' : '#10B981' }}
+                  >
+                    {algoOutput.rpo_gap ? 'MAVJUD' : 'YO\'Q'}
+                  </motion.div>
                   <div className="metric-sub">{algoOutput.rpo_gap ? 'Zaxira oralig\'i katta!' : 'Qoniqarli holat'}</div>
-                </div>
-                <div className="metric-card" style={{ '--metric-accent': '#06B6D4', '--metric-accent-bg': 'rgba(6,182,212,0.08)' } as React.CSSProperties}>
+                </motion.div>
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.4, delay: 0.2 }}
+                  className="metric-card"
+                  style={{ '--metric-accent': '#06B6D4', '--metric-accent-bg': 'rgba(6,182,212,0.1)' } as React.CSSProperties}
+                >
                   <div className="metric-label">KUZATUVLAR</div>
-                  <div className="metric-value" style={{ color: '#06B6D4' }}>{algoOutput.observations?.length ?? 0}</div>
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.8, delay: 0.15 }}
+                    className="metric-value"
+                    style={{ color: '#06B6D4' }}
+                  >
+                    {algoOutput.observations?.length ?? 0}
+                  </motion.div>
                   <div className="metric-sub">Aniqlangan muammo</div>
-                </div>
+                </motion.div>
               </div>
               <div style={{ marginBottom: 6, fontSize: 11, fontWeight: 600, color: 'var(--color-text-muted)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>JSON natija</div>
-              <div className="code-block">
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                transition={{ duration: 0.4 }}
+                className="code-block"
+              >
                 <pre>{JSON.stringify(algoOutput, null, 2)}</pre>
-              </div>
-            </div>
+              </motion.div>
+            </motion.div>
           )}
         </div>
-      </div>
+      </motion.div>
 
       {/* Priority Engine */}
-      <div className="card">
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.1 }}
+        className="card"
+      >
         <div className="card-header">
           <div>
             <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -833,24 +954,42 @@ function EngineTab({ algoInput, setAlgoInput, algoOutput, onRunAlgo, priorityRes
               FR-07: Priority = 0.40×Impact + 0.25×Urgency + 0.20×Risk + 0.15×Dependency
             </div>
           </div>
-          <button className="btn btn-secondary btn-sm" onClick={onRunPriority} disabled={loading}>
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={onRunPriority}
+            disabled={loading}
+            className="btn btn-secondary btn-sm"
+          >
             {loading ? <div className="spinner" style={{ width: 14, height: 14 }} /> : <RefreshCw size={13} />}
             Qayta Hisoblash
-          </button>
+          </motion.button>
         </div>
         <div className="card-body">
           {priorityResults?.ranked_processes ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.4, staggerChildren: 0.08 }}
+              style={{ display: 'flex', flexDirection: 'column', gap: 8 }}
+            >
               {priorityResults.ranked_processes.map((p: any, idx: number) => {
                 const score = Number(p.priority_score);
                 const pct = Math.round(score * 100);
-                const barColor = score >= 0.7 ? '#EF4444' : score >= 0.45 ? '#F59E0B' : '#10B981';
+                const barColor = score >= 0.7 ? '#FF4F24' : score >= 0.45 ? '#F59E0B' : '#10B981';
                 return (
-                  <div key={idx} className="rank-card">
+                  <motion.div
+                    key={idx}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.3, delay: idx * 0.06 }}
+                    whileHover={{ x: 4 }}
+                    className="rank-card"
+                  >
                     <div className="rank-number" style={{
-                      background: idx < 3 ? 'rgba(239,68,68,0.15)' : 'rgba(59,130,246,0.1)',
-                      color: idx < 3 ? '#FCA5A5' : '#93C5FD',
-                      border: `1px solid ${idx < 3 ? 'rgba(239,68,68,0.3)' : 'rgba(59,130,246,0.25)'}`,
+                      background: idx < 3 ? 'rgba(255,79,36,0.15)' : 'rgba(82,103,124,0.1)',
+                      color: idx < 3 ? '#FF4F24' : '#93A7B8',
+                      border: `1px solid ${idx < 3 ? 'rgba(255,79,36,0.3)' : 'rgba(82,103,124,0.25)'}`,
                     }}>
                       {idx + 1}
                     </div>
@@ -859,7 +998,13 @@ function EngineTab({ algoInput, setAlgoInput, algoOutput, onRunAlgo, priorityRes
                         {p.process_name}
                       </div>
                       <div className="progress-bar-track">
-                        <div className="progress-bar-fill" style={{ width: `${pct}%`, background: barColor }} />
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: `${pct}%` }}
+                          transition={{ duration: 0.8, delay: idx * 0.04, ease: 'circOut' }}
+                          className="progress-bar-fill"
+                          style={{ background: barColor }}
+                        />
                       </div>
                       <div style={{ display: 'flex', gap: 12, marginTop: 5, fontSize: 11, color: 'var(--color-text-muted)' }}>
                         <span>Impact: <strong style={{ color: 'var(--color-text-secondary)' }}>{p.operands.impact_norm}</strong></span>
@@ -869,26 +1014,31 @@ function EngineTab({ algoInput, setAlgoInput, algoOutput, onRunAlgo, priorityRes
                       </div>
                     </div>
                     <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                      <div style={{
-                        fontFamily: 'JetBrains Mono, monospace',
-                        fontSize: 20,
-                        fontWeight: 900,
-                        color: barColor,
-                      }}>
+                      <motion.div
+                        initial={{ opacity: 0, y: 6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3, delay: idx * 0.06 + 0.1 }}
+                        style={{
+                          fontFamily: 'JetBrains Mono, monospace',
+                          fontSize: 20,
+                          fontWeight: 900,
+                          color: barColor,
+                        }}
+                      >
                         {score.toFixed(4)}
-                      </div>
+                      </motion.div>
                       <div style={{ fontSize: 10, color: 'var(--color-text-muted)', marginTop: 1 }}>Priority Score</div>
                     </div>
-                  </div>
+                  </motion.div>
                 );
               })}
-            </div>
+            </motion.div>
           ) : (
             <EmptyState icon={BarChart3} title="Tahlil boshlash uchun «Qayta Hisoblash» tugmasini bosing" />
           )}
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }
 
@@ -1135,13 +1285,55 @@ function AuditTab({ auditLogs }: { auditLogs: AuditLog[] }) {
 }
 
 /* ────────────────────────────────────────────────
+   ANIMATED SHIELD LOGO
+────────────────────────────────────────────────── */
+function AnimatedShield({ size = 24, color = '#FF4F24', animate = true }: {
+  size?: number; color?: string; animate?: boolean;
+}) {
+  const shieldPath = 'M12 2L2 7l10 5 10-5-10-5z';
+  const innerPath = 'M12 7l-2 2 2 2 2-2-2-2z';
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.8, rotate: -10 }}
+      animate={animate ? { opacity: 1, scale: 1, rotate: 0 } : { opacity: 1, scale: 1, rotate: 0 }}
+      transition={{ duration: 0.6, ease: 'circOut' }}
+      className="brand-logo"
+      style={{
+        width: size,
+        height: size,
+        background: color,
+        boxShadow: `0 4px 14px rgba(255, 79, 36, ${animate ? 0.35 : 0})`,
+      }}
+    >
+      <svg
+        width={size * 0.5}
+        height={size * 0.5}
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="white"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        style={{ display: 'block' }}
+      >
+        <path d={shieldPath} />
+        <path d={innerPath} />
+      </svg>
+    </motion.div>
+  );
+}
+
+/* ────────────────────────────────────────────────
    LOGIN FORM (shown when not authenticated)
 ────────────────────────────────────────────────── */
 function LoginForm({ onLogin }: { onLogin: (user: any) => void }) {
-  const [username, setUsername] = useState('bcms_manager');
-  const [password, setPassword] = useState('Admin123!');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loggingIn, setLoggingIn] = useState(false);
   const [error, setError] = useState('');
+  const [loginSuccess, setLoginSuccess] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1149,6 +1341,7 @@ function LoginForm({ onLogin }: { onLogin: (user: any) => void }) {
     setError('');
     try {
       const res = await api.login({ username, password });
+      setLoginSuccess(true);
       onLogin(res.user);
     } catch (err: any) {
       setError(err.message || 'Login xatolik yuz berdi. Foydalanuvchi nomi yoki parol noto\'g\'ri.');
@@ -1158,51 +1351,99 @@ function LoginForm({ onLogin }: { onLogin: (user: any) => void }) {
   };
 
   return (
-    <div className="app-shell" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
-      <div className="modal-panel" style={{ width: '100%', maxWidth: 400, padding: 24 }}>
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      transition={{ duration: 0.4, ease: 'circOut' }}
+      className="app-shell"
+      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.5, delay: 0.1, ease: 'circOut' }}
+        className="modal-panel"
+        style={{ width: '100%', maxWidth: 400, padding: 24 }}
+      >
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
-          <Shield size={24} color="#60A5FA" />
-          <div style={{ fontWeight: 800, fontSize: 18, color: 'var(--color-text-primary)' }}>BCMS Designer</div>
+          <AnimatedShield size={28} color="#FF4F24" animate={loginSuccess} />
+          <div style={{ fontWeight: 800, fontSize: 18, color: 'var(--color-text-primary)' }}>RiskGuard</div>
         </div>
         <div style={{ fontSize: 13, color: 'var(--color-text-secondary)', marginBottom: 24 }}>
           Tizimga kirish uchun foydalanuvchi nomi va parolni kiriting
         </div>
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div className="form-group">
-            <label className="form-label">Foydalanuvchi nomi</label>
-            <input
-              type="text"
-              className="input-field"
-              value={username}
-              onChange={e => setUsername(e.target.value)}
-              autoFocus
-            />
-          </div>
-          <div className="form-group">
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.2 }}
+          >
+            <div className="form-group">
+              <label className="form-label">Foydalanuvchi nomi</label>
+              <input
+                type="text"
+                className="input-field"
+                value={username}
+                onChange={e => setUsername(e.target.value)}
+                autoFocus
+              />
+            </div>
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.3 }}
+            className="form-group"
+          >
             <label className="form-label">Parol</label>
-            <input
-              type="password"
-              className="input-field"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-            />
-          </div>
+            <div className="input-wrapper">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                className="input-field"
+                style={{ paddingRight: 44 }}
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                aria-label={showPassword ? "Parolni yashirish" : "Parolni ko'rsatish"}
+                className="password-toggle"
+              >
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+          </motion.div>
           {error && (
-            <div style={{ color: 'var(--color-critical-text)', fontSize: 12, marginBottom: 8, textAlign: 'center' }}>{error}</div>
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.2 }}
+              style={{ color: 'var(--color-critical-text)', fontSize: 12, marginBottom: 8, textAlign: 'center' }}
+            >
+              {error}
+            </motion.div>
           )}
-          <button
+          <motion.button
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.4 }}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
             className="btn btn-primary"
             type="submit"
             disabled={loggingIn}
           >
             {loggingIn ? 'Kirish...' : 'Tizimga kirish'}
-          </button>
+          </motion.button>
           <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 12, textAlign: 'center' }}>
-            Demo hisoblar: admin / bcms_manager / director (parol: Admin123!)
+            Demo hisoblar: admin / bcms_manager / director
           </div>
         </form>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }
 
@@ -1450,14 +1691,21 @@ export function App() {
           {/* Page Header */}
           <div className="page-header" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
-              <div style={{
-                width: 40, height: 40, borderRadius: 10,
-                background: 'var(--color-accent-primary-light)',
-                border: '1px solid rgba(59,130,246,0.25)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                flexShrink: 0, marginTop: 2,
-              }}>
-                <meta.icon size={20} style={{ color: '#60A5FA' }} />
+              <div
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 10,
+                  background: 'var(--color-brand-primary-light)',
+                  border: '1px solid rgba(255,79,36,0.25)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                  marginTop: 2,
+                }}
+              >
+                <meta.icon size={20} style={{ color: '#FF4F24' }} />
               </div>
               <div>
                 <h1 className="page-title">{meta.title}</h1>
@@ -1467,35 +1715,46 @@ export function App() {
           </div>
 
           {/* Tab Content */}
-          {activeTab === 'dashboard' && (
-            <DashboardTab dashboard={dashboard} processes={processes} bias={bias} risks={risks} />
-          )}
-          {activeTab === 'processes' && (
-            <ProcessesTab processes={processes} assets={assets} onNewProcess={() => setShowNewProcessModal(true)} />
-          )}
-          {activeTab === 'bia' && (
-            <BIATab bias={bias} currentUser={currentUser} onApproveBIA={handleApproveBIA} />
-          )}
-          {activeTab === 'risks' && (
-            <RisksTab risks={risks} />
-          )}
-          {activeTab === 'engine' && (
-            <EngineTab
-              algoInput={algoInput} setAlgoInput={setAlgoInput}
-              algoOutput={algoOutput} onRunAlgo={handleRunAlgo}
-              priorityResults={priorityResults} onRunPriority={handleRunPriority}
-              loading={loading}
-            />
-          )}
-          {activeTab === 'simulation' && (
-            <SimulationTab scenarios={scenarios} simOutput={simOutput} onRunSimulation={handleRunSimulation} />
-          )}
-          {activeTab === 'plans' && (
-            <PlansTab plans={plans} currentUser={currentUser} onPublishPlan={handlePublishPlan} />
-          )}
-          {activeTab === 'audit' && (
-            <AuditTab auditLogs={auditLogs} />
-          )}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeTab}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.25, ease: 'circOut' }}
+              className="page-tab"
+            >
+              {activeTab === 'dashboard' && (
+                <DashboardTab dashboard={dashboard} processes={processes} bias={bias} risks={risks} />
+              )}
+              {activeTab === 'processes' && (
+                <ProcessesTab processes={processes} assets={assets} onNewProcess={() => setShowNewProcessModal(true)} />
+              )}
+              {activeTab === 'bia' && (
+                <BIATab bias={bias} currentUser={currentUser} onApproveBIA={handleApproveBIA} />
+              )}
+              {activeTab === 'risks' && (
+                <RisksTab risks={risks} />
+              )}
+              {activeTab === 'engine' && (
+                <EngineTab
+                  algoInput={algoInput} setAlgoInput={setAlgoInput}
+                  algoOutput={algoOutput} onRunAlgo={handleRunAlgo}
+                  priorityResults={priorityResults} onRunPriority={handleRunPriority}
+                  loading={loading}
+                />
+              )}
+              {activeTab === 'simulation' && (
+                <SimulationTab scenarios={scenarios} simOutput={simOutput} onRunSimulation={handleRunSimulation} />
+              )}
+              {activeTab === 'plans' && (
+                <PlansTab plans={plans} currentUser={currentUser} onPublishPlan={handlePublishPlan} />
+              )}
+              {activeTab === 'audit' && (
+                <AuditTab auditLogs={auditLogs} />
+              )}
+            </motion.div>
+          </AnimatePresence>
         </div>
       </main>
 
