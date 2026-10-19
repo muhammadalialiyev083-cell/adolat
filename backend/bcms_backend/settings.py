@@ -23,16 +23,23 @@ ALLOWED_HOSTS = [
 ]
 
 CSRF_TRUSTED_ORIGINS = [
-    "https://adolat-99us.onrender.com",
-    "https://safeguardity.netlify.app",
+    origin.strip()
+    for origin in os.environ.get(
+        "CSRF_TRUSTED_ORIGINS",
+        "https://adolat-99us.onrender.com,https://safeguardity.netlify.app"
+    ).split(",")
+    if origin.strip()
 ]
+if DEBUG:
+    CSRF_TRUSTED_ORIGINS += ["http://localhost:5173", "http://127.0.0.1:5173"]
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 SESSION_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_SECURE = not DEBUG
-SESSION_COOKIE_SAMESITE = 'None'
-CSRF_COOKIE_SAMESITE = 'None'
+# Browsers reject SameSite=None cookies without Secure on local HTTP.
+SESSION_COOKIE_SAMESITE = 'Lax' if DEBUG else 'None'
+CSRF_COOKIE_SAMESITE = 'Lax' if DEBUG else 'None'
 
 # ==============================
 # APPLICATIONS

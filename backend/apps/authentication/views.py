@@ -1,4 +1,7 @@
 from django.middleware.csrf import get_token
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import never_cache
+from rest_framework.authentication import SessionAuthentication
 from rest_framework import views, viewsets, status, permissions
 from rest_framework.response import Response
 from django.contrib.auth import login, logout
@@ -8,6 +11,7 @@ from apps.authentication.permissions import IsTenantMember, IsAdminRole, IsAudit
 from apps.core.audit import record_audit
 
 
+@method_decorator(never_cache, name='dispatch')
 class LoginView(views.APIView):
     """
     FR-01: Kirish (Login).
@@ -16,6 +20,9 @@ class LoginView(views.APIView):
     permission_classes = [permissions.AllowAny]
 
     def post(self, request):
+        # DRF's session authentication only checks CSRF for authenticated users.
+        # Login must also validate it before creating an anonymous user's session.
+        SessionAuthentication().enforce_csrf(request)
         serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.validated_data['user']
@@ -35,10 +42,12 @@ class LoginView(views.APIView):
         user_data = UserSerializer(user).data
         return Response({
             'message': 'Muvaffaqiyatli kirildi.',
-            'user': user_data
+            'user': user_data,
+            'csrfToken': get_token(request),
         }, status=status.HTTP_200_OK)
 
 
+@method_decorator(never_cache, name='dispatch')
 class LogoutView(views.APIView):
     """
     FR-01: Tizimdan chiqish (Logout).
@@ -56,9 +65,13 @@ class LogoutView(views.APIView):
             organization=user.organization
         )
         logout(request)
-        return Response({'message': 'Tizimdan muvaffaqiyatli chiqildi.'}, status=status.HTTP_200_OK)
+        return Response({
+            'message': 'Tizimdan muvaffaqiyatli chiqildi.',
+            'csrfToken': get_token(request),
+        }, status=status.HTTP_200_OK)
 
 
+@method_decorator(never_cache, name='dispatch')
 class MeView(views.APIView):
     """
     Joriy foydalanuvchi profilini va rollarini qaytaradi.
@@ -121,6 +134,9 @@ class UserViewSet(viewsets.ModelViewSet):
             before_state=before_state
         )
         instance.delete()
+
+
+@method_decorator(never_cache, name='dispatch')
 class CSRFTokenView(views.APIView):
     permission_classes = [permissions.AllowAny]
 
