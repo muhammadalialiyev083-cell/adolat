@@ -56,6 +56,7 @@ def login(data: LoginRequest, request: Request, db: Session = Depends(get_db)):
             detail="Hisob nofaol holatda.",
         )
     # Set session
+    request.session.clear()
     request.session["user_id"] = user.id
     # Audit log
     create_audit_log(
@@ -80,3 +81,11 @@ def logout(request: Request, db: Session = Depends(get_db), current_user: User =
 @router.get("/me", response_model=UserResponse)
 def me(current_user: User = Depends(get_current_user)):
     return _build_user_response(current_user)
+
+
+@router.get('/csrf')
+def csrf_token(request: Request):
+    import secrets
+    if not request.session.get('csrf_token'):
+        request.session['csrf_token'] = secrets.token_urlsafe(32)
+    return {'csrfToken': request.session['csrf_token']}

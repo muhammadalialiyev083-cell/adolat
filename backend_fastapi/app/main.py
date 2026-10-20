@@ -6,6 +6,7 @@ from fastapi.responses import HTMLResponse
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.config import settings
+from app.utils.csrf import CSRFMiddleware
 
 app = FastAPI(
     title="BCMS Designer API",
@@ -17,7 +18,10 @@ app = FastAPI(
 )
 
 # ── Middleware ──
-app.add_middleware(SessionMiddleware, secret_key=settings.SESSION_SECRET, max_age=86400)
+app.add_middleware(CSRFMiddleware)
+app.add_middleware(SessionMiddleware, secret_key=settings.SESSION_SECRET.get_secret_value(), max_age=86400,
+                   https_only=settings.ENVIRONMENT == "production",
+                   same_site="none" if settings.ENVIRONMENT == "production" else "lax")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.allowed_origins_list,

@@ -19,7 +19,8 @@ else:
 
 engine = create_engine(
     db_url,
-    echo=settings.DEBUG,
+    echo=False,
+    hide_parameters=True,
     **engine_kwargs,
 )
 

@@ -1,8 +1,13 @@
+from apps.core.serializers import TenantReferenceMixin
 from rest_framework import serializers
 from apps.plans.models import Strategy, ContinuityPlan, PlanStep
 
 
-class StrategySerializer(serializers.ModelSerializer):
+class StrategySerializer(TenantReferenceMixin, serializers.ModelSerializer):
+    estimated_cost = serializers.DecimalField(max_digits=18, decimal_places=2, min_value=0)
+    estimated_rto_hours = serializers.DecimalField(max_digits=6, decimal_places=2, min_value=0)
+    estimated_rpo_minutes = serializers.IntegerField(min_value=0)
+
     process_name = serializers.CharField(source='process.name', read_only=True)
 
     class Meta:

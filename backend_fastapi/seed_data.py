@@ -2,7 +2,7 @@
 
 Usage: python seed_data.py
 
-Demo users (password: Admin123!):
+Local demo users (password supplied through DEMO_USER_PASSWORD):
   - admin (ADMIN)
   - bcms_manager (BCMS_MANAGER)
   - director (APPROVER)
@@ -26,6 +26,12 @@ from datetime import date, datetime
 
 
 def seed():
+    from app.config import settings
+    if settings.ENVIRONMENT != 'development':
+        raise RuntimeError('Demo provisioning is restricted to development')
+    demo_password = os.environ.get('DEMO_USER_PASSWORD')
+    if not demo_password or len(demo_password) < 12:
+        raise RuntimeError('Set a local DEMO_USER_PASSWORD of at least 12 characters')
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
@@ -65,7 +71,7 @@ def seed():
         db.flush()
 
         # Users
-        pwd = hash_password("Admin123!")
+        pwd = hash_password(demo_password)
         admin = User(
             username="admin", email="admin@fstu.uz", hashed_password=pwd,
             first_name="Muhammadali", last_name="Aliyev",
@@ -184,7 +190,7 @@ def seed():
 
         db.commit()
         print("Demo ma'lumotlar muvaffaqiyatli yuklandi!")
-        print("\nDemo foydalanuvchilar (parol: Admin123!):")
+        print("\nLocal demo foydalanuvchilar (password supplied securely):")
         print("  admin       — ADMIN")
         print("  bcms_manager — BCMS_MANAGER")
         print("  director    — APPROVER")

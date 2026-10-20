@@ -7,7 +7,7 @@ from app.database import get_db
 from app.dependencies import get_current_user, get_client_ip
 from app.models.user import User
 from app.models.risk import Risk, Control
-from app.models.process import BusinessProcess
+from app.models.process import BusinessProcess, Asset
 from app.schemas.risk import RiskCreate, RiskOut, ControlOut
 from app.schemas.common import PageResponse
 from app.utils.audit import create_audit_log
@@ -56,9 +56,12 @@ def create_risk(
     proc = db.query(BusinessProcess).filter(
         BusinessProcess.id == data.process,
         BusinessProcess.organization_id == current_user.organization_id,
+        BusinessProcess.is_deleted == False,
     ).first()
     if not proc:
         raise HTTPException(status_code=404, detail="Jarayon topilmadi.")
+    if data.asset is not None and not db.query(Asset).filter(Asset.id == data.asset, Asset.organization_id == current_user.organization_id, Asset.is_deleted == False).first():
+        raise HTTPException(status_code=404, detail='Aktiv topilmadi.')
     risk = Risk(
         organization_id=current_user.organization_id,
         process_id=data.process,

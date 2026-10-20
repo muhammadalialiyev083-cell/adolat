@@ -1,7 +1,7 @@
 """Risk schemas."""
 
 from typing import Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class RiskCreate(BaseModel):
@@ -11,8 +11,8 @@ class RiskCreate(BaseModel):
     vulnerability: str = ""
     likelihood: int = 3
     impact: int = 3
-    likelihood_residual: Optional[int] = None
-    impact_residual: Optional[int] = None
+    likelihood_residual: Optional[int] = Field(default=None, ge=1, le=5)
+    impact_residual: Optional[int] = Field(default=None, ge=1, le=5)
 
 
 class RiskOut(BaseModel):
@@ -22,8 +22,8 @@ class RiskOut(BaseModel):
     threat: str
     likelihood: int
     impact: int
-    likelihood_residual: Optional[int] = None
-    impact_residual: Optional[int] = None
+    likelihood_residual: Optional[int] = Field(default=None, ge=1, le=5)
+    impact_residual: Optional[int] = Field(default=None, ge=1, le=5)
     risk_score: int
     residual_risk_score: Optional[int] = None
     risk_reduction: int

@@ -9,9 +9,21 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # SECURITY
 # ==============================
 
-SECRET_KEY = os.environ.get("SECRET_KEY", "django-insecure-bcms-designer-dev-key")
+from django.core.exceptions import ImproperlyConfigured
+from django.core.management.utils import get_random_secret_key
+
+# Render is the current production host. Local sessions use a fresh ephemeral key.
+PRODUCTION = os.environ.get('ENVIRONMENT') == 'production' or bool(os.environ.get('RENDER'))
+SECRET_KEY = os.environ.get('SECRET_KEY') or ('' if PRODUCTION else get_random_secret_key())
+if PRODUCTION:
+    if not os.environ.get('DATABASE_URL'):
+        raise ImproperlyConfigured('Production requires DATABASE_URL')
+    if len(SECRET_KEY) < 32 or len(set(SECRET_KEY)) < 12 or any(s in SECRET_KEY.lower() for s in ('insecure', 'changeme', 'placeholder', 'bcms-')):
+        raise ImproperlyConfigured('Production requires a strong SECRET_KEY')
 
 DEBUG = os.environ.get("DEBUG", "False").lower() == "true"
+if PRODUCTION and DEBUG:
+    raise ImproperlyConfigured('DEBUG must be disabled in production')
 
 ALLOWED_HOSTS = [
     host.strip()

@@ -1,0 +1,13 @@
+{
+  "criticality": "HIGH",
+  "bia": {"rto_hours": 4, "mtpd_hours": 12, "rpo_minutes": 60, "backup_interval_minutes": 360},
+  "impacts": [
+    {"horizon_hours": 4, "financial_loss": 10, "operational_score": 2, "legal_score": 1, "reputational_score": 1},
+    {"horizon_hours": 12, "financial_loss": 200, "operational_score": 5, "legal_score": 4, "reputational_score": 4}
+  ],
+  "max_loss": 1000,
+  "risks": [[4, 5]],
+  "dependency_norm": 1.0,
+  "expected_operands": {"impact_norm": 0.62, "urgency_norm": 0.9444, "risk_norm": 0.7917, "dependency_norm": 1.0},
+  "expected_score": 0.7924
+}

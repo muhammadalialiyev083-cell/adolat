@@ -18,8 +18,8 @@ class ScenarioViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         if user.is_superuser:
-            return Scenario.objects.all()
-        return Scenario.objects.filter(organization=user.organization)
+            return Scenario.objects.filter(organization=user.organization, is_deleted=False)
+        return Scenario.objects.filter(organization=user.organization, is_deleted=False)
 
     def perform_create(self, serializer):
         sc = serializer.save(organization=self.request.user.organization)

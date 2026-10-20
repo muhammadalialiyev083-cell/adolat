@@ -1,4 +1,4 @@
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 from django.conf import settings
 import os
 from apps.organizations.models import Organization, Department
@@ -9,6 +9,11 @@ class Command(BaseCommand):
     help = "Provision/demo foydalanuvchilarni yaratadi yoki yangilaydi. Faqat ishga tushirishda avtomatik ishlamaydi."
 
     def handle(self, *args, **options):
+        if not settings.DEBUG or os.environ.get('ENVIRONMENT') == 'production' or os.environ.get('RENDER'):
+            raise CommandError('Demo provisioning is restricted to explicit local development.')
+        demo_password = os.environ.get('DEMO_USER_PASSWORD')
+        if not demo_password or len(demo_password) < 12:
+            raise CommandError('Set a local DEMO_USER_PASSWORD of at least 12 characters; never use production credentials.')
         org, _ = Organization.objects.get_or_create(
             name="Pilot Tashkilot",
             defaults={
@@ -23,7 +28,7 @@ class Command(BaseCommand):
             defaults={'head_name': "Admin"}
         )
 
-        default_password = os.environ.get("DEMO_USER_PASSWORD", "Admin123!")  # seed_demo_data bilan bir xil
+        default_password = demo_password  # seed_demo_data bilan bir xil
 
         users = [
             {
@@ -72,7 +77,6 @@ class Command(BaseCommand):
 
         self.stdout.write(
             self.style.WARNING(
-                f"Demo parol: {default_password}. "
-                "Production'da DEMO_USER_PASSWORD env o'zgaruvchisi orqali o'zgartiring."
+                "Local demo users prepared; password is never printed."
             )
         )

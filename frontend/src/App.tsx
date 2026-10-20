@@ -1112,6 +1112,13 @@ function SimulationTab({ scenarios, simOutput, onRunSimulation }: {
                     </div>
                   ))}
                 </div>
+                {simOutput.warnings?.length > 0 && (
+                  <div role="alert" className="card-subtitle">
+                    <strong>Ma’lumot sifati bo‘yicha ogohlantirish:</strong>
+                    <ul>{simOutput.warnings.map((warning: string) => <li key={warning}>{warning}</li>)}</ul>
+                    Nol natija tashkilot xavfsizligini tasdiqlamaydi.
+                  </div>
+                )}
                 {simOutput.affected_processes.length > 0 && (
                   <table className="data-table">
                     <thead>

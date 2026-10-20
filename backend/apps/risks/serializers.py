@@ -1,3 +1,4 @@
+from apps.core.serializers import TenantReferenceMixin
 from rest_framework import serializers
 from apps.risks.models import Risk, Control
 
@@ -11,7 +12,12 @@ class ControlSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 
-class RiskSerializer(serializers.ModelSerializer):
+class RiskSerializer(TenantReferenceMixin, serializers.ModelSerializer):
+    likelihood = serializers.IntegerField(min_value=1, max_value=5, required=False)
+    impact = serializers.IntegerField(min_value=1, max_value=5, required=False)
+    likelihood_residual = serializers.IntegerField(min_value=1, max_value=5, required=False, allow_null=True)
+    impact_residual = serializers.IntegerField(min_value=1, max_value=5, required=False, allow_null=True)
+
     process_name = serializers.CharField(source='process.name', read_only=True)
     asset_name = serializers.CharField(source='asset.name', read_only=True)
     risk_score = serializers.IntegerField(read_only=True)

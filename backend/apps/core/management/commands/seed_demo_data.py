@@ -1,4 +1,6 @@
-from django.core.management.base import BaseCommand
+from django.conf import settings
+import os
+from django.core.management.base import BaseCommand, CommandError
 from apps.organizations.models import Organization, Department, Service
 from apps.authentication.models import User
 from apps.processes.models import BusinessProcess, Asset, Dependency
@@ -13,6 +15,11 @@ class Command(BaseCommand):
     help = "Hujjat 12.1 demo ssenariysi bo'yicha namunaviy ma'lumotlarni bazaga yuklash"
 
     def handle(self, *args, **options):
+        if not settings.DEBUG or os.environ.get('ENVIRONMENT') == 'production' or os.environ.get('RENDER'):
+            raise CommandError('Demo provisioning is restricted to explicit local development.')
+        demo_password = os.environ.get('DEMO_USER_PASSWORD')
+        if not demo_password or len(demo_password) < 12:
+            raise CommandError('Set a local DEMO_USER_PASSWORD of at least 12 characters; never use production credentials.')
         self.stdout.write("Namunaviy pilot ma'lumotlari yaratilmoqda...")
 
         # 1. Tashkilot
@@ -33,7 +40,7 @@ class Command(BaseCommand):
             defaults={'head_name': "Turdimatov M.M."}
         )
 
-        # 2. Foydalanuvchilar (Parol: Admin123!)
+        # 2. Local users: password is supplied through DEMO_USER_PASSWORD
         admin_user, _ = User.objects.get_or_create(
             username="admin",
             defaults={
@@ -45,7 +52,7 @@ class Command(BaseCommand):
                 'last_name': "Aliyev"
             }
         )
-        admin_user.set_password("Admin123!")
+        admin_user.set_password(demo_password)
         admin_user.save()
 
         manager, _ = User.objects.get_or_create(
@@ -59,7 +66,7 @@ class Command(BaseCommand):
                 'last_name': "Menejeri"
             }
         )
-        manager.set_password("Admin123!")
+        manager.set_password(demo_password)
         manager.save()
 
         approver, _ = User.objects.get_or_create(
@@ -73,7 +80,7 @@ class Command(BaseCommand):
                 'last_name': "Turdimatov"
             }
         )
-        approver.set_password("Admin123!")
+        approver.set_password(demo_password)
         approver.save()
 
         # 3. Xizmat
@@ -219,4 +226,4 @@ class Command(BaseCommand):
         )
 
         self.stdout.write(self.style.SUCCESS("Demo pilot ma'lumotlari muvaffaqiyatli yuklandi!"))
-        self.stdout.write("Foydalanuvchilar: admin (Admin123!), bcms_manager (Admin123!), director (Admin123!)")
+        self.stdout.write("Foydalanuvchilar: admin, bcms_manager, director (local password supplied securely)")

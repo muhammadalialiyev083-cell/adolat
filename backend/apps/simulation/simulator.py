@@ -1,7 +1,6 @@
-import networkx as nx
-from typing import Dict, Any, List
+from typing import Dict, Any
 from apps.simulation.models import Scenario
-from apps.processes.models import BusinessProcess, Asset, Dependency
+from apps.processes.models import BusinessProcess
 from apps.engine.calculator import DependencyAnalyzer
 
 
@@ -16,44 +15,31 @@ class ScenarioSimulator:
         org = scenario.organization
         g = DependencyAnalyzer.build_graph(org)
         
-        disrupted_asset_ids = scenario.disrupted_asset_ids or []
-        affected_processes_ids = set()
-
-        # Har bir nosoz aktiv uchun unga qaram bo'lgan tugunlarni topish
-        for asset_id in disrupted_asset_ids:
-            asset_node = f"ASSET:{asset_id}"
-            if asset_node in g:
-                # In-edges or ancestors: kim ushbu aktivga bog'langan
-                dependents = nx.ancestors(g, asset_node)
-                for dep in dependents:
-                    if dep.startswith('PROCESS:'):
-                        proc_id = int(dep.split(':')[1])
-                        affected_processes_ids.add(proc_id)
-
-            # Shuningdek, to'g'ridan-to'g'ri bog'liqliklar
-            direct_deps = Dependency.objects.filter(
-                organization=org,
-                to_type='ASSET',
-                to_id=asset_id,
-                from_type='PROCESS'
-            )
-            for d in direct_deps:
-                affected_processes_ids.add(d.from_id)
+        from bcms_domain.graph import cascade
+        from bcms_domain.scientific import number
+        from rest_framework.exceptions import ValidationError
+        disrupted_asset_ids = scenario.disrupted_asset_ids if scenario.disrupted_asset_ids is not None else []
+        try:
+            outage_hours = float(number(scenario.estimated_outage_hours, 'estimated_outage_hours'))
+            affected_processes_ids, warnings = cascade(g, disrupted_asset_ids)
+        except ValueError as exc:
+            raise ValidationError({'simulation': str(exc)}) from None
 
         affected_processes_data = []
         rto_breaches = 0
         mtpd_breaches = 0
         missing_plans = 0
 
-        outage_hours = float(scenario.estimated_outage_hours)
 
         for pid in affected_processes_ids:
             try:
-                proc = BusinessProcess.objects.get(id=pid, organization=org)
+                proc = BusinessProcess.objects.get(id=pid, organization=org, is_deleted=False)
             except BusinessProcess.DoesNotExist:
                 continue
 
-            latest_bia = proc.bia_assessments.order_by('-revision').first()
+            latest_bia = proc.bia_assessments.filter(organization=org, is_deleted=False).order_by('-revision', '-id').first()
+            if not latest_bia:
+                warnings.append(f'MISSING_BIA: process {pid}; breach targets use legacy 24h/48h priors')
             rto_h = float(latest_bia.rto_hours) if latest_bia else 24.0
             mtpd_h = float(latest_bia.mtpd_hours) if latest_bia else 48.0
 
@@ -65,14 +51,14 @@ class ScenarioSimulator:
             if mtpd_breached:
                 mtpd_breaches += 1
 
-            has_published_plan = proc.continuity_plans.filter(status='PUBLISHED').exists()
+            has_published_plan = proc.continuity_plans.filter(organization=org, is_deleted=False, status='PUBLISHED').exists()
             if not has_published_plan:
                 missing_plans += 1
 
             affected_processes_data.append({
                 'process_id': proc.id,
                 'process_name': proc.name,
-                'service_name': proc.service.name,
+                'service_name': proc.service.name if proc.service.organization_id == org.id else '',
                 'criticality': proc.criticality,
                 'target_rto_hours': rto_h,
                 'target_mtpd_hours': mtpd_h,
@@ -82,6 +68,9 @@ class ScenarioSimulator:
             })
 
         return {
+            'warnings': sorted(set(warnings)),
+            'data_quality_status': 'INCOMPLETE' if warnings else 'REGISTERED_GRAPH_ONLY',
+            'simulation_status': 'CONFIRMED_IMPACT' if affected_processes_data else 'NO_CONFIRMED_IMPACT',
             'scenario_id': scenario.id,
             'scenario_title': scenario.title,
             'estimated_outage_hours': outage_hours,

@@ -14,3 +14,17 @@ class AuditLogSerializer(serializers.ModelSerializer):
             'timestamp', 'ip_address'
         ]
         read_only_fields = fields
+
+
+class TenantReferenceMixin:
+    """Reject cross-tenant or deleted object references before model save."""
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        request = self.context.get('request')
+        if request:
+            org_id = request.user.organization_id
+            for field in ('service', 'owner', 'process', 'asset', 'plan', 'scenario'):
+                obj = attrs.get(field)
+                if obj is not None and (getattr(obj, 'organization_id', org_id) != org_id or getattr(obj, 'is_deleted', False)):
+                    raise serializers.ValidationError({field: 'Active object in the current organization required.'})
+        return attrs

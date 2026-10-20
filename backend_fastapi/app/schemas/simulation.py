@@ -1,7 +1,7 @@
 """Simulation schemas."""
 
 from typing import Optional, List
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ScenarioOut(BaseModel):
@@ -42,3 +42,6 @@ class SimulationResult(BaseModel):
     rto_breaches_count: int
     missing_plans_count: int
     affected_processes: List[AffectedProcess]
+    warnings: List[str] = Field(default_factory=list)
+    data_quality_status: str = 'REGISTERED_GRAPH_ONLY'
+    simulation_status: str = 'NO_CONFIRMED_IMPACT'

@@ -1,5 +1,9 @@
 """Test configuration and fixtures for BCMS Designer FastAPI."""
 
+import os
+os.environ["ENVIRONMENT"] = "test"
+os.environ["DATABASE_URL"] = "sqlite:///:memory:"
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -159,6 +163,7 @@ def auth_client():
     c = TestClient(app)
     res = c.post("/api/v1/auth/login", json={"username": "bcms_manager", "password": "Admin123!"})
     assert res.status_code == 200
+    c.headers['X-CSRFToken'] = c.get('/api/v1/auth/csrf').json()['csrfToken']
     return c
 
 
@@ -168,6 +173,7 @@ def admin_client():
     c = TestClient(app)
     res = c.post("/api/v1/auth/login", json={"username": "admin", "password": "Admin123!"})
     assert res.status_code == 200
+    c.headers['X-CSRFToken'] = c.get('/api/v1/auth/csrf').json()['csrfToken']
     return c
 
 
@@ -177,4 +183,5 @@ def approver_client():
     c = TestClient(app)
     res = c.post("/api/v1/auth/login", json={"username": "director", "password": "Admin123!"})
     assert res.status_code == 200
+    c.headers['X-CSRFToken'] = c.get('/api/v1/auth/csrf').json()['csrfToken']
     return c

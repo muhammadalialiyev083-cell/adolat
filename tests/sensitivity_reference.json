@@ -1,0 +1,8 @@
+[
+  {"id":1,"operands":{"impact_norm":0.9,"urgency_norm":0.3,"risk_norm":0.5,"dependency_norm":0.1}},
+  {"id":2,"operands":{"impact_norm":0.5,"urgency_norm":0.9,"risk_norm":0.6,"dependency_norm":0.4}},
+  {"id":3,"operands":{"impact_norm":0.6,"urgency_norm":0.5,"risk_norm":0.8,"dependency_norm":0.6}},
+  {"id":4,"operands":{"impact_norm":0.2,"urgency_norm":0.8,"risk_norm":0.3,"dependency_norm":0.9}},
+  {"id":5,"operands":{"impact_norm":0.7,"urgency_norm":0.2,"risk_norm":0.6,"dependency_norm":0.7}},
+  {"id":6,"operands":{"impact_norm":0.4,"urgency_norm":0.6,"risk_norm":0.5,"dependency_norm":0.2}}
+]

@@ -3,7 +3,7 @@
 NOTE: These endpoints have NO trailing slash (frontend expectation).
 """
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -22,7 +22,10 @@ def priority_analysis(
     db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
 ):
     from app.services.engine import compute_priority_scores
-    return compute_priority_scores(db, current_user.organization_id)
+    try:
+        return compute_priority_scores(db, current_user.organization_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from None
 
 
 @router.post("/evaluate-risk", response_model=EvaluateRiskResponse)
@@ -40,4 +43,7 @@ def evaluate_strategy(
     db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
 ):
     from app.services.engine import evaluate_strategy_algorithm
-    return evaluate_strategy_algorithm(db, data, current_user.organization_id)
+    try:
+        return evaluate_strategy_algorithm(db, data, current_user.organization_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from None

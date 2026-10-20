@@ -41,6 +41,7 @@ def run_simulation(
     scenario = db.query(Scenario).filter(
         Scenario.id == scenario_id,
         Scenario.organization_id == current_user.organization_id,
+        Scenario.is_deleted == False,
     ).first()
     if not scenario:
         raise HTTPException(status_code=404, detail="Ssenariy topilmadi.")

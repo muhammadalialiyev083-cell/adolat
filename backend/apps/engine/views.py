@@ -1,9 +1,26 @@
-from rest_framework import views, status, permissions
+from rest_framework import views, status, serializers
 from rest_framework.response import Response
 from apps.engine.calculator import RiskCalculator, PriorityEngine, StrategyEvaluator
 from apps.processes.models import BusinessProcess
-from apps.authentication.permissions import IsTenantMember, IsAuditorReadOnly
-from apps.core.audit import record_audit
+from apps.authentication.permissions import IsTenantMember
+
+
+class RiskInput(serializers.Serializer):
+    likelihood = serializers.IntegerField(min_value=1, max_value=5)
+    impact = serializers.IntegerField(min_value=1, max_value=5)
+    rto_hours = serializers.DecimalField(max_digits=12, decimal_places=4, min_value=0)
+    rpo_minutes = serializers.IntegerField(min_value=0)
+    backup_interval_minutes = serializers.IntegerField(min_value=0)
+
+
+class PriorityInput(serializers.Serializer):
+    process_id = serializers.IntegerField(min_value=1, required=False)
+
+
+class StrategyInput(serializers.Serializer):
+    target_rto_hours = serializers.DecimalField(max_digits=12, decimal_places=4, min_value=0)
+    target_rpo_minutes = serializers.IntegerField(min_value=0)
+    strategies = serializers.ListField(child=serializers.DictField())
 
 
 class PriorityAnalysisView(views.APIView):
@@ -14,22 +31,30 @@ class PriorityAnalysisView(views.APIView):
     permission_classes = [IsTenantMember]
 
     def post(self, request):
-        process_id = request.data.get('process_id')
+        payload = PriorityInput(data=request.data)
+        payload.is_valid(raise_exception=True)
+        process_id = payload.validated_data.get('process_id')
         user = request.user
         
         if process_id:
             try:
-                proc = BusinessProcess.objects.get(id=process_id, organization=user.organization)
+                proc = BusinessProcess.objects.get(id=process_id, organization=user.organization, is_deleted=False)
             except BusinessProcess.DoesNotExist:
                 return Response({'error': 'Jarayon topilmadi.'}, status=status.HTTP_404_NOT_FOUND)
             
-            result = PriorityEngine.calculate_priority(proc)
+            try:
+                result = PriorityEngine.calculate_priority(proc)
+            except ValueError as exc:
+                raise serializers.ValidationError({'data_quality': str(exc)}) from None
             return Response(result, status=status.HTTP_200_OK)
 
         # Butun tashkilot bo'yicha hisoblash
-        procs = BusinessProcess.objects.filter(organization=user.organization)
-        results = [PriorityEngine.calculate_priority(p) for p in procs]
-        results.sort(key=lambda x: x['priority_score'], reverse=True)
+        procs = BusinessProcess.objects.filter(organization=user.organization, is_deleted=False)
+        try:
+            results = [PriorityEngine.calculate_priority(p) for p in procs]
+        except ValueError as exc:
+            raise serializers.ValidationError({'data_quality': str(exc)}) from None
+        results.sort(key=lambda x: (-x['priority_score'], x['process_id']))
 
         return Response({
             'total_processes': len(results),
@@ -46,11 +71,12 @@ class EvaluateRiskAlgorithmView(views.APIView):
     permission_classes = [IsTenantMember]
 
     def post(self, request):
-        likelihood = int(request.data.get('likelihood', 1))
-        impact = int(request.data.get('impact', 1))
-        rto_hours = float(request.data.get('rto_hours', 24))
-        rpo_minutes = int(request.data.get('rpo_minutes', 60))
-        backup_interval = int(request.data.get('backup_interval_minutes', 60))
+        payload = RiskInput(data=request.data)
+        payload.is_valid(raise_exception=True)
+        likelihood = payload.validated_data['likelihood']
+        impact = payload.validated_data['impact']
+        rpo_minutes = payload.validated_data['rpo_minutes']
+        backup_interval = payload.validated_data['backup_interval_minutes']
 
         score = RiskCalculator.calculate_score(likelihood, impact)
         org = request.user.organization
@@ -78,9 +104,11 @@ class EvaluateStrategyView(views.APIView):
     permission_classes = [IsTenantMember]
 
     def post(self, request):
-        target_rto = float(request.data.get('target_rto_hours', 24))
-        target_rpo = int(request.data.get('target_rpo_minutes', 60))
-        candidates = request.data.get('strategies', [])
-
-        res = StrategyEvaluator.evaluate_strategies(target_rto, target_rpo, candidates)
+        payload = StrategyInput(data=request.data)
+        payload.is_valid(raise_exception=True)
+        data = payload.validated_data
+        try:
+            res = StrategyEvaluator.evaluate_strategies(data['target_rto_hours'], data['target_rpo_minutes'], data['strategies'])
+        except ValueError as exc:
+            raise serializers.ValidationError({'error': str(exc)}) from None
         return Response(res, status=status.HTTP_200_OK)

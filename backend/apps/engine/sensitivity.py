@@ -13,15 +13,17 @@ OPERAND_KEYS = ('impact_norm', 'urgency_norm', 'risk_norm', 'dependency_norm')
 
 
 def kendall_tau(rank_a: List[Any], rank_b: List[Any]) -> float:
-    """Kendall tau-b (bog'lanishlarni hisobga olgan). Kirishlar — element ID larning tartibli ro'yxati.
+    """Kendall tau-a for permutations of unique IDs (ties are not represented).
 
-    Ikkala ro'yxatda bir xil elementlar to'plami bo'lishi shart.
-    Qaytaradi: [-1.0, 1.0]; 1.0 = bir xil tartib.
+    Legacy empty/singleton agreement returns 1.0 by convention; this is not a
+    defined statistical correlation. Use kendall_tau_b for numerical scores.
     """
     if len(rank_a) != len(rank_b):
         raise ValueError("Rank ro'yxatlari bir xil uzunlikda bo'lishi shart.")
     if set(rank_a) != set(rank_b):
         raise ValueError("Rank ro'yxatlarida bir xil elementlar bo'lishi shart.")
+    if len(set(rank_a)) != len(rank_a):
+        raise ValueError('Rank lists must contain unique identifiers')
     n = len(rank_a)
     if n < 2:
         return 1.0
@@ -34,11 +36,44 @@ def kendall_tau(rank_a: List[Any], rank_b: List[Any]) -> float:
             concordant += 1
         elif seq[i] > seq[j]:
             discordant += 1
-        # teng bo'lsa (bog'lanish) — tau-b da hisoblagichga kirmaydi
     denom = n * (n - 1) / 2
     if denom == 0:
         return 1.0
     return round((concordant - discordant) / denom, 4)
+
+
+def kendall_tau_b(scores_x, scores_y):
+    """Tie-aware Kendall tau-b on paired scores; None means undefined.
+
+    Pairs tied in both variables contribute to neither tie-only count.
+    No rounding: retain precision for independent statistical comparisons.
+    """
+    import math
+    if len(scores_x) != len(scores_y):
+        raise ValueError('Score vectors must have equal lengths')
+    if any(not math.isfinite(v) for v in [*scores_x, *scores_y]):
+        raise ValueError('Scores must be finite')
+    c = d = tx = ty = 0
+    for i, j in combinations(range(len(scores_x)), 2):
+        x = int(scores_x[i] > scores_x[j]) - int(scores_x[i] < scores_x[j])
+        y = int(scores_y[i] > scores_y[j]) - int(scores_y[i] < scores_y[j])
+        if not x and not y:
+            continue
+        if not x:
+            tx += 1
+        elif not y:
+            ty += 1
+        elif x == y:
+            c += 1
+        else:
+            d += 1
+    denom = math.sqrt((c + d + tx) * (c + d + ty))
+    return (c - d) / denom if denom else None
+
+
+def _score_tau(data, base, changed):
+    return kendall_tau_b([_score(p['operands'], base) for p in data],
+                         [_score(p['operands'], changed) for p in data])
 
 
 WEIGHT_KEYS = ('impact', 'urgency', 'risk', 'dependency')
@@ -56,6 +91,8 @@ def _score(operands: Dict[str, float], weights: Dict[str, float]) -> float:
 
 
 def _rank(process_operands: List[Dict[str, Any]], weights: Dict[str, float]) -> List[Any]:
+    if len({p['id'] for p in process_operands}) != len(process_operands):
+        raise ValueError('Process identifiers must be unique')
     scored = [(p['id'], _score(p['operands'], weights)) for p in process_operands]
     scored.sort(key=lambda x: (-x[1], x[0]))
     return [pid for pid, _ in scored]
@@ -69,25 +106,32 @@ def sweep_weights(
     """Har bir vaznni +-delta ga siljitib (qolganlarini proporsional renormalizatsiya),
     ranking barqarorligini o'lchash. Qaytaradi: base_rank, har vazn uchun min tau va max siljish.
     """
+    from bcms_domain.scientific import validate_weights
+    validate_weights(base_weights)
+    from bcms_domain.scientific import number
+    delta = float(number(delta, 'delta'))
     base_rank = _rank(process_operands, base_weights)
     pos_base = {pid: i for i, pid in enumerate(base_rank)}
     per_weight = {}
     for key in WEIGHT_KEYS:
         taus = []
         max_disp = 0
+        variants = []
         for sign in (+1, -1):
             w = dict(base_weights)
-            w[key] = round(max(0.01, w[key] + sign * delta), 4)
+            w[key] = min(1.0, max(0.0, w[key] + sign * delta))
             rest = [k for k in WEIGHT_KEYS if k != key]
-            leftover = round(1.0 - w[key], 4)
+            leftover = 1.0 - w[key]
             base_rest_sum = sum(base_weights[k] for k in rest)
             for k in rest:
-                w[k] = round(leftover * base_weights[k] / base_rest_sum, 4) if base_rest_sum else round(leftover / len(rest), 4)
+                w[k] = leftover * base_weights[k] / base_rest_sum if base_rest_sum else leftover / len(rest)
+            validate_weights(w)
+            variants.append({'weights': w, 'tau_b_scores': _score_tau(process_operands, base_weights, w)})
             new_rank = _rank(process_operands, w)
             taus.append(kendall_tau(base_rank, new_rank))
             pos_new = {pid: i for i, pid in enumerate(new_rank)}
             max_disp = max(max_disp, max(abs(pos_base[pid] - pos_new[pid]) for pid in base_rank)) if base_rank else 0
-        per_weight[WEIGHT_TO_OPERAND[key]] = {'min_tau': min(taus), 'max_displacement': max_disp, 'weights_tested': 2}
+        per_weight[WEIGHT_TO_OPERAND[key]] = {'min_tau': min(taus), 'max_displacement': max_disp, 'weights_tested': 2, 'variants': variants, 'rank_statistic': 'Kendall tau-a (ID order)'}
     return {
         'base_rank': base_rank,
         'base_weights': dict(base_weights),
@@ -103,13 +147,17 @@ def ablate_operands(
 ) -> Dict[str, Any]:
     """Har bir operandni navbat bilan olib tashlash (vazn=0, qolganlar renormalizatsiya)
     va ranking o'zgarishini o'lchash."""
+    from bcms_domain.scientific import validate_weights
+    validate_weights(base_weights)
     base_rank = _rank(process_operands, base_weights)
     per_operand = {}
     for key in WEIGHT_KEYS:
         w = {k: (0.0 if k == key else base_weights[k]) for k in WEIGHT_KEYS}
         rest_sum = sum(w.values())
+        if not rest_sum:
+            raise ValueError('Ablation leaves no positive weights to normalize')
         if rest_sum:
-            w = {k: round(v / rest_sum, 4) for k, v in w.items()}
+            w = {k: v / rest_sum for k, v in w.items()}
         new_rank = _rank(process_operands, w)
         pos_new = {pid: i for i, pid in enumerate(new_rank)}
         pos_base = {pid: i for i, pid in enumerate(base_rank)}
@@ -117,6 +165,9 @@ def ablate_operands(
             'tau_vs_base': kendall_tau(base_rank, new_rank),
             'max_displacement': max(abs(pos_base[pid] - pos_new[pid]) for pid in base_rank) if base_rank else 0,
             'new_rank': new_rank,
+            'weights': w,
+            'tau_b_scores': _score_tau(process_operands, base_weights, w),
+            'rank_statistic': 'Kendall tau-a (ID order)',
         }
     return {'base_rank': base_rank, 'per_operand': per_operand}
 
@@ -128,7 +179,11 @@ def sweep_tmax(
     """urgency = 1 - min(1, rto/T_MAX) formulasi uchun T_MAX sezgirligi.
     Har bir T_MAX da urgency vektorini qaytaradi (deterministik)."""
     out = {}
+    from bcms_domain.scientific import number
     for tmax in tmax_values:
+        number(tmax, 'tmax', positive=True)
+        for rto in rto_hours_list:
+            number(rto, 'rto_hours')
         out[str(tmax)] = [round(max(0.0, 1.0 - min(1.0, r / tmax)), 4) for r in rto_hours_list]
     return {'rto_hours': list(rto_hours_list), 'tmax_values': list(tmax_values), 'urgency_vectors': out}
 

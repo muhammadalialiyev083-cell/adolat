@@ -1,0 +1,7 @@
+# Run pip install -r requirements-test.txt from backend/ (Python 3.12).
+-r requirements.txt
+-r ../backend_fastapi/requirements.txt
+pytest==8.3.4
+pytest-django>=4.9,<5
+# Independent statistical reference, tests only; not a runtime requirement.
+scipy>=1.14,<2

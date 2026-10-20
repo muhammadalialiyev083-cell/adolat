@@ -1,15 +1,15 @@
 """BIA schemas."""
 
 from typing import Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class BIACreate(BaseModel):
     process: int
-    mtpd_hours: float
-    rto_hours: float
-    rpo_minutes: int = 60
-    backup_interval_minutes: int = 60
+    mtpd_hours: float = Field(ge=0, allow_inf_nan=False)
+    rto_hours: float = Field(ge=0, allow_inf_nan=False)
+    rpo_minutes: int = Field(default=60, ge=0)
+    backup_interval_minutes: int = Field(default=60, ge=0)
     comments: str = ""
 
 
