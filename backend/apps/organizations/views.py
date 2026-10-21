@@ -1,93 +1,47 @@
-from rest_framework import viewsets, permissions, status
-from rest_framework.response import Response
-from apps.organizations.models import Organization, Department, Service
-from apps.organizations.serializers import OrganizationSerializer, DepartmentSerializer, ServiceSerializer
-from apps.authentication.permissions import IsTenantMember, IsAuditorReadOnly, IsAdminRole, IsBCMSManagerRole
+from django.db import transaction
+from rest_framework.exceptions import PermissionDenied
+
+from apps.core.api import TenantViewSet
 from apps.core.audit import record_audit
+from apps.organizations.models import Organization
+from apps.organizations.serializers import (
+    DepartmentSerializer,
+    OrganizationSerializer,
+    ServiceSerializer,
+)
 
 
-class OrganizationViewSet(viewsets.ModelViewSet):
-    """
-    FR-02: Tashkilot profili.
-    Foydalanuvchi faqat o'z tashkilotini ko'ra oladi va Administrator o'zgartira oladi.
-    """
+class OrganizationViewSet(TenantViewSet):
     serializer_class = OrganizationSerializer
-    permission_classes = [IsTenantMember, IsAuditorReadOnly]
 
     def get_queryset(self):
-        user = self.request.user
-        if user.is_superuser:
-            return Organization.objects.all()
-        return Organization.objects.filter(id=user.organization_id)
+        return Organization.objects.filter(pk=self.request.user.organization_id)
 
-    def perform_update(self, serializer):
-        before = OrganizationSerializer(serializer.instance).data
-        org = serializer.save()
+    @transaction.atomic
+    def perform_create(self, serializer):
+        if self.request.user.organization_id:
+            raise PermissionDenied("Yangi tashkilotni alohida administrator hisobidan sozlang.")
+        organization = serializer.save()
+        self.request.user.organization = organization
+        self.request.user.save(update_fields=["organization"])
         record_audit(
-            request=self.request,
-            action='UPDATE',
-            entity='Organization',
-            entity_id=org.id,
-            before_state=before,
-            after_state=OrganizationSerializer(org).data
+            self.request,
+            action="CREATE",
+            entity="Organization",
+            entity_id=organization.pk,
+            after_state=serializer.data,
         )
 
 
-class DepartmentViewSet(viewsets.ModelViewSet):
-    """
-    Tashkilot tarkibiy bo'linmalari va filiallari.
-    """
+class DepartmentViewSet(TenantViewSet):
     serializer_class = DepartmentSerializer
-    permission_classes = [IsTenantMember, IsAuditorReadOnly]
-
-    def get_queryset(self):
-        user = self.request.user
-        if user.is_superuser:
-            return Department.objects.all()
-        return Department.objects.filter(organization=user.organization)
-
-    def perform_create(self, serializer):
-        dept = serializer.save(organization=self.request.user.organization)
-        record_audit(
-            request=self.request,
-            action='CREATE',
-            entity='Department',
-            entity_id=dept.id,
-            after_state=DepartmentSerializer(dept).data
-        )
-
-    def perform_update(self, serializer):
-        before = DepartmentSerializer(serializer.instance).data
-        dept = serializer.save()
-        record_audit(
-            request=self.request,
-            action='UPDATE',
-            entity='Department',
-            entity_id=dept.id,
-            before_state=before,
-            after_state=DepartmentSerializer(dept).data
-        )
+    search_fields = ["name"]
+    filter_fields = []
+    ordering_fields = ["id", "name"]
 
 
-class ServiceViewSet(viewsets.ModelViewSet):
-    """
-    Tashkilot taqdim etadigan xizmatlar (Services) reestri.
-    """
+class ServiceViewSet(TenantViewSet):
     serializer_class = ServiceSerializer
-    permission_classes = [IsTenantMember, IsAuditorReadOnly]
-
-    def get_queryset(self):
-        user = self.request.user
-        if user.is_superuser:
-            return Service.objects.all()
-        return Service.objects.filter(organization=user.organization)
-
-    def perform_create(self, serializer):
-        service = serializer.save(organization=self.request.user.organization)
-        record_audit(
-            request=self.request,
-            action='CREATE',
-            entity='Service',
-            entity_id=service.id,
-            after_state=ServiceSerializer(service).data
-        )
+    search_fields = ["name", "description"]
+    filter_fields = ["owner"]
+    ordering_fields = ["id", "name"]

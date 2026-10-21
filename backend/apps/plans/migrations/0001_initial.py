@@ -6,69 +6,152 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
     dependencies = [
-        ('organizations', '0001_initial'),
-        ('processes', '0001_initial'),
+        ("organizations", "0001_initial"),
+        ("processes", "0001_initial"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='ContinuityPlan',
+            name="ContinuityPlan",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('is_deleted', models.BooleanField(default=False)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('title', models.CharField(max_length=255)),
-                ('version', models.CharField(default='1.0', max_length=20)),
-                ('scope', models.TextField(blank=True)),
-                ('status', models.CharField(choices=[('DRAFT', 'Qoralama'), ('IN_REVIEW', "Ko'rib chiqilmoqda"), ('APPROVED', 'Tasdiqlangan'), ('PUBLISHED', "E'lon qilingan"), ('ARCHIVED', 'Arxivlangan')], default='DRAFT', max_length=20)),
-                ('approved_at', models.DateTimeField(blank=True, null=True)),
-                ('approved_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='approved_plans', to=settings.AUTH_USER_MODEL)),
-                ('organization', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='%(app_label)s_%(class)s_set', to='organizations.organization')),
-                ('process', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='continuity_plans', to='processes.businessprocess')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
+                ("is_deleted", models.BooleanField(default=False)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                ("title", models.CharField(max_length=255)),
+                ("version", models.CharField(default="1.0", max_length=20)),
+                ("scope", models.TextField(blank=True)),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("DRAFT", "Qoralama"),
+                            ("IN_REVIEW", "Ko'rib chiqilmoqda"),
+                            ("APPROVED", "Tasdiqlangan"),
+                            ("PUBLISHED", "E'lon qilingan"),
+                            ("ARCHIVED", "Arxivlangan"),
+                        ],
+                        default="DRAFT",
+                        max_length=20,
+                    ),
+                ),
+                ("approved_at", models.DateTimeField(blank=True, null=True)),
+                (
+                    "approved_by",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="approved_plans",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "organization",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="%(app_label)s_%(class)s_set",
+                        to="organizations.organization",
+                    ),
+                ),
+                (
+                    "process",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="continuity_plans",
+                        to="processes.businessprocess",
+                    ),
+                ),
             ],
             options={
-                'ordering': ['-version', '-created_at'],
+                "ordering": ["-version", "-created_at"],
             },
         ),
         migrations.CreateModel(
-            name='PlanStep',
+            name="PlanStep",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('sequence', models.PositiveSmallIntegerField(default=1)),
-                ('title', models.CharField(max_length=255)),
-                ('description', models.TextField(blank=True)),
-                ('expected_duration_minutes', models.PositiveIntegerField(default=30)),
-                ('assigned_to', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='assigned_plan_steps', to=settings.AUTH_USER_MODEL)),
-                ('plan', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='steps', to='plans.continuityplan')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
+                ("sequence", models.PositiveSmallIntegerField(default=1)),
+                ("title", models.CharField(max_length=255)),
+                ("description", models.TextField(blank=True)),
+                ("expected_duration_minutes", models.PositiveIntegerField(default=30)),
+                (
+                    "assigned_to",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="assigned_plan_steps",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "plan",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="steps",
+                        to="plans.continuityplan",
+                    ),
+                ),
             ],
             options={
-                'ordering': ['sequence'],
+                "ordering": ["sequence"],
             },
         ),
         migrations.CreateModel(
-            name='Strategy',
+            name="Strategy",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('is_deleted', models.BooleanField(default=False)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('name', models.CharField(max_length=255)),
-                ('description', models.TextField(blank=True)),
-                ('estimated_rto_hours', models.DecimalField(decimal_places=2, max_digits=6)),
-                ('estimated_rpo_minutes', models.PositiveIntegerField()),
-                ('estimated_cost', models.DecimalField(decimal_places=2, default=0.0, max_digits=18)),
-                ('is_selected', models.BooleanField(default=False)),
-                ('organization', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='%(app_label)s_%(class)s_set', to='organizations.organization')),
-                ('process', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='strategies', to='processes.businessprocess')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
+                ("is_deleted", models.BooleanField(default=False)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                ("name", models.CharField(max_length=255)),
+                ("description", models.TextField(blank=True)),
+                ("estimated_rto_hours", models.DecimalField(decimal_places=2, max_digits=6)),
+                ("estimated_rpo_minutes", models.PositiveIntegerField()),
+                (
+                    "estimated_cost",
+                    models.DecimalField(decimal_places=2, default=0.0, max_digits=18),
+                ),
+                ("is_selected", models.BooleanField(default=False)),
+                (
+                    "organization",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="%(app_label)s_%(class)s_set",
+                        to="organizations.organization",
+                    ),
+                ),
+                (
+                    "process",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="strategies",
+                        to="processes.businessprocess",
+                    ),
+                ),
             ],
             options={
-                'ordering': ['estimated_cost'],
+                "ordering": ["estimated_cost"],
             },
         ),
     ]

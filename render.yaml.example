@@ -1,0 +1,27 @@
+# Review-only candidate for a NEW service. Not applied or validated against Render.
+# Current docs/schema were blocked by environment network policy.
+# For the existing service, use its existing identity/settings; do not sync this file.
+services:
+  - type: web
+    name: riskguard-bcms
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput
+    startCommand: gunicorn bcms_backend.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 60
+    preDeployCommand: python manage.py migrate --noinput
+    healthCheckPath: /healthz
+    envVars:
+      - key: DEBUG
+        value: "false"
+      - key: SECRET_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: ALLOWED_HOSTS
+        sync: false
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+      - key: CSRF_TRUSTED_ORIGINS
+        sync: false
+      - key: COOKIE_SAMESITE
+        value: Lax

@@ -1,5 +1,8 @@
-from django.db import models
+from decimal import Decimal
+
 from django.conf import settings
+from django.db import models
+
 from apps.core.models import BaseTenantModel
 from apps.processes.models import BusinessProcess
 
@@ -9,19 +12,53 @@ class Strategy(BaseTenantModel):
     FR-08: Tiklash strategiyasi varianti.
     Masalan: Zaxira serverga o'tish (RTO=2h, RPO=30m, narxi=15000000).
     """
-    process = models.ForeignKey(BusinessProcess, on_delete=models.CASCADE, related_name='strategies')
+
+    process = models.ForeignKey(
+        BusinessProcess, on_delete=models.CASCADE, related_name="strategies"
+    )
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True)
     estimated_rto_hours = models.DecimalField(max_digits=6, decimal_places=2)
     estimated_rpo_minutes = models.PositiveIntegerField()
     estimated_cost = models.DecimalField(max_digits=18, decimal_places=2, default=0.00)
     is_selected = models.BooleanField(default=False)
+    kind = models.CharField(
+        max_length=30,
+        choices=[
+            ("BACKUP", "Backupdan tiklash"),
+            ("INFRASTRUCTURE", "Zaxira infratuzilma"),
+            ("WORKPLACE", "Muqobil ish joyi"),
+            ("MANUAL", "Qo‘lda bajarish"),
+            ("SUPPLIER", "Muqobil yetkazib beruvchi"),
+        ],
+        default="BACKUP",
+    )
+    preparation_minutes = models.PositiveIntegerField(default=0)
+    staff_required = models.PositiveIntegerField(default=1)
+    resource_requirements = models.JSONField(default=dict, blank=True)
+    conditions = models.TextField(blank=True)
+
+    recovery_seconds = models.PositiveBigIntegerField(default=0, editable=False)
+    rpo_seconds = models.PositiveBigIntegerField(default=0, editable=False)
 
     class Meta:
-        ordering = ['estimated_cost']
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(
+                    estimated_rto_hours__gt=0, estimated_cost__gte=0, staff_required__gte=1
+                ),
+                name="strategy_valid_limits",
+            )
+        ]
+        ordering = ["estimated_cost"]
 
     def __str__(self):
         return f"{self.name} (RTO: {self.estimated_rto_hours}h, Cost: {self.estimated_cost})"
+
+    def save(self, *args, **kwargs):
+        self.recovery_seconds = int(Decimal(str(self.estimated_rto_hours)) * 3600)
+        self.rpo_seconds = int(Decimal(str(self.estimated_rpo_minutes)) * 60)
+        super().save(*args, **kwargs)
 
 
 class ContinuityPlan(BaseTenantModel):
@@ -29,31 +66,47 @@ class ContinuityPlan(BaseTenantModel):
     FR-09: BCP / DRP Uzluksizlik rejalari.
     Versiyalangan, qadamlar ketma-ketligi, mas'ullar va tasdiqlash holati.
     """
+
     STATUS_CHOICES = [
-        ('DRAFT', 'Qoralama'),
-        ('IN_REVIEW', 'Ko\'rib chiqilmoqda'),
-        ('APPROVED', 'Tasdiqlangan'),
-        ('PUBLISHED', 'E\'lon qilingan'),
-        ('ARCHIVED', 'Arxivlangan'),
+        ("DRAFT", "Qoralama"),
+        ("IN_REVIEW", "Ko'rib chiqilmoqda"),
+        ("APPROVED", "Tasdiqlangan"),
+        ("PUBLISHED", "E'lon qilingan"),
+        ("ARCHIVED", "Arxivlangan"),
     ]
 
-    process = models.ForeignKey(BusinessProcess, on_delete=models.CASCADE, related_name='continuity_plans')
+    process = models.ForeignKey(
+        BusinessProcess, on_delete=models.CASCADE, related_name="continuity_plans"
+    )
     title = models.CharField(max_length=255)
-    version = models.CharField(max_length=20, default='1.0')
+    version = models.CharField(max_length=20, default="1.0")
     scope = models.TextField(blank=True)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='DRAFT')
-    
+    activation_conditions = models.TextField(blank=True)
+    contacts = models.TextField(blank=True)
+    temporary_procedures = models.TextField(blank=True)
+    return_to_normal = models.TextField(blank=True)
+    verification_criteria = models.TextField(blank=True)
+    review_due_date = models.DateField(null=True, blank=True)
+    snapshot = models.JSONField(default=dict, blank=True)
+    previous_version = models.ForeignKey(
+        "self", on_delete=models.PROTECT, null=True, blank=True, related_name="revisions"
+    )
+    schedule_run = models.ForeignKey(
+        "engine.ScheduleRun", on_delete=models.PROTECT, null=True, blank=True
+    )
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="DRAFT")
+
     approved_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='approved_plans'
+        related_name="approved_plans",
     )
     approved_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
-        ordering = ['-version', '-created_at']
+        ordering = ["-version", "-created_at"]
 
     def __str__(self):
         return f"{self.title} (v{self.version}) - {self.get_status_display()}"
@@ -63,7 +116,8 @@ class PlanStep(models.Model):
     """
     FR-09: BCP/DRP rejasidagi aniq bosqichlar/harakatlar.
     """
-    plan = models.ForeignKey(ContinuityPlan, on_delete=models.CASCADE, related_name='steps')
+
+    plan = models.ForeignKey(ContinuityPlan, on_delete=models.CASCADE, related_name="steps")
     sequence = models.PositiveSmallIntegerField(default=1)
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True)
@@ -72,12 +126,18 @@ class PlanStep(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='assigned_plan_steps'
+        related_name="assigned_plan_steps",
     )
     expected_duration_minutes = models.PositiveIntegerField(default=30)
 
     class Meta:
-        ordering = ['sequence']
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(sequence__gte=1), name="plan_step_positive_sequence"
+            ),
+            models.UniqueConstraint(fields=["plan", "sequence"], name="plan_step_unique_sequence"),
+        ]
+        ordering = ["sequence"]
 
     def __str__(self):
         return f"{self.plan.title} - Qadam {self.sequence}: {self.title}"

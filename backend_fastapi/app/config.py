@@ -8,14 +8,14 @@ class Settings(BaseSettings):
     """Application settings loaded from .env file."""
 
     # Database
-    DATABASE_URL: str = "postgresql://bcms_user:bcms_secret_2026@localhost:5432/bcms_db"
+    DATABASE_URL: str
 
     # Security
-    SECRET_KEY: str = "bcms-designer-dev-secret-key-2026"
-    SESSION_SECRET: str = "bcms-session-secret-key-2026"
+    SECRET_KEY: str
+    SESSION_SECRET: str
 
     # App
-    DEBUG: bool = True
+    DEBUG: bool = False
     ALLOWED_ORIGINS: str = "http://localhost:5173,http://localhost:8000"
     PAGE_SIZE: int = 50
     TIMEZONE: str = "Asia/Tashkent"

@@ -5,27 +5,34 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
     dependencies = [
-        ('bia', '0001_initial'),
-        ('processes', '0001_initial'),
+        ("bia", "0001_initial"),
+        ("processes", "0001_initial"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='biaassessment',
-            name='process',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='bia_assessments', to='processes.businessprocess'),
+            model_name="biaassessment",
+            name="process",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="bia_assessments",
+                to="processes.businessprocess",
+            ),
         ),
         migrations.AddField(
-            model_name='biaimpact',
-            name='bia',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='impacts', to='bia.biaassessment'),
+            model_name="biaimpact",
+            name="bia",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="impacts",
+                to="bia.biaassessment",
+            ),
         ),
         migrations.AlterUniqueTogether(
-            name='biaimpact',
-            unique_together={('bia', 'horizon_hours')},
+            name="biaimpact",
+            unique_together={("bia", "horizon_hours")},
         ),
     ]

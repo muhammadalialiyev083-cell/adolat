@@ -1,5 +1,9 @@
 """Test configuration and fixtures for BCMS Designer FastAPI."""
 
+import os
+os.environ.setdefault('DATABASE_URL','sqlite:///:memory:')
+os.environ.setdefault('SECRET_KEY','historical-fastapi-test-only-secret-0000000000000000')
+os.environ.setdefault('SESSION_SECRET','historical-fastapi-test-session-only-0000000000000')
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
