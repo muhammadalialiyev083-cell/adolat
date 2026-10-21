@@ -36,3 +36,7 @@ build/
 
 # Loglar
 *.log
+/work/
+/backend/work/
+/backend/staticfiles/
+/backend/media/

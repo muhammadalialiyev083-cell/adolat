@@ -1,74 +1,82 @@
-from rest_framework import viewsets, permissions, status
+from decimal import Decimal
+
+from django.db import transaction
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from apps.simulation.models import Scenario, Exercise
-from apps.simulation.serializers import ScenarioSerializer, ExerciseSerializer
-from apps.simulation.simulator import ScenarioSimulator
-from apps.authentication.permissions import IsTenantMember, IsAuditorReadOnly
+
+from apps.core.api import TenantViewSet
 from apps.core.audit import record_audit
+from apps.simulation.models import SimulationRun
+from apps.simulation.serializers import (
+    ExerciseSerializer,
+    ScenarioSerializer,
+    SimulationRunSerializer,
+)
+from apps.simulation.simulator import ScenarioSimulator
 
 
-class ScenarioViewSet(viewsets.ModelViewSet):
-    """
-    FR-10: Ssenariylar va simulyatsiya.
-    """
+class ScenarioViewSet(TenantViewSet):
     serializer_class = ScenarioSerializer
-    permission_classes = [IsTenantMember, IsAuditorReadOnly]
+    search_fields = ["title", "description"]
+    filter_fields = ["kind", "is_synthetic"]
+    ordering_fields = ["id", "title"]
 
-    def get_queryset(self):
-        user = self.request.user
-        if user.is_superuser:
-            return Scenario.objects.all()
-        return Scenario.objects.filter(organization=user.organization)
-
-    def perform_create(self, serializer):
-        sc = serializer.save(organization=self.request.user.organization)
-        record_audit(
-            request=self.request,
-            action='CREATE',
-            entity='Scenario',
-            entity_id=sc.id,
-            after_state={'title': sc.title, 'outage': str(sc.estimated_outage_hours)}
-        )
-
-    @action(detail=True, methods=['post'])
+    @action(detail=True, methods=["post"])
+    @transaction.atomic
     def simulate(self, request, pk=None):
-        """
-        FR-10 va T-06: Nosozlik ssenariysini simulyatsiya qilish va zanjirsimon ta'sirni hisoblash.
-        """
         scenario = self.get_object()
         result = ScenarioSimulator.simulate(scenario)
-
-        record_audit(
-            request=request,
-            action='SIMULATE',
-            entity='Scenario',
-            entity_id=scenario.id,
-            after_state={'affected_count': result['affected_processes_count']}
+        snapshot = result.pop("input_snapshot")
+        run = SimulationRun.objects.create(
+            organization=request.user.organization,
+            scenario=scenario,
+            input_snapshot=snapshot,
+            results=result,
         )
+        result["simulation_run_id"] = run.pk
+        record_audit(
+            request,
+            action="SIMULATE",
+            entity="Scenario",
+            entity_id=scenario.pk,
+            after_state={"affected_count": result["affected_processes_count"]},
+        )
+        return Response(result)
 
-        return Response(result, status=status.HTTP_200_OK)
 
-
-class ExerciseViewSet(viewsets.ModelViewSet):
-    """
-    FR-13: Rejalashtirilgan mashqlar va real sinovlar.
-    """
+class ExerciseViewSet(TenantViewSet):
     serializer_class = ExerciseSerializer
-    permission_classes = [IsTenantMember, IsAuditorReadOnly]
-
-    def get_queryset(self):
-        user = self.request.user
-        if user.is_superuser:
-            return Exercise.objects.all()
-        return Exercise.objects.filter(organization=user.organization)
+    search_fields = ["plan__title", "findings", "improvement_actions"]
+    filter_fields = ["plan", "outcome", "findings_closed", "is_synthetic"]
+    ordering_fields = ["id", "exercise_date", "actual_recovery_hours"]
 
     def perform_create(self, serializer):
-        ex = serializer.save(organization=self.request.user.organization)
-        record_audit(
-            request=self.request,
-            action='CREATE',
-            entity='Exercise',
-            entity_id=ex.id,
-            after_state={'plan_id': ex.plan_id, 'outcome': ex.outcome}
+        plan = serializer.validated_data["plan"]
+        bia = (
+            plan.process.bia_assessments.filter(is_deleted=False)
+            .order_by("-revision", "-id")
+            .first()
         )
+        frozen_bias = plan.snapshot.get("bia_snapshot", [])
+        target = (
+            Decimal(frozen_bias[0]["rto_hours"]) if frozen_bias else bia.rto_hours if bia else None
+        )
+        obj = serializer.save(
+            organization=self.request.user.organization,
+            planned_recovery_hours=target,
+        )
+        record_audit(
+            self.request,
+            action="CREATE",
+            entity="Exercise",
+            entity_id=obj.pk,
+            after_state=serializer.data,
+        )
+
+
+class SimulationRunViewSet(TenantViewSet):
+    serializer_class = SimulationRunSerializer
+    http_method_names = ["get", "head", "options"]
+    search_fields = ["scenario__title"]
+    filter_fields = ["scenario"]
+    ordering_fields = ["id", "created_at"]

@@ -2,7 +2,8 @@
 
 Usage: python seed_data.py
 
-Demo users (password: Admin123!):
+Historical backend only. Explicit BCMS_DEMO_PASSWORD in DEBUG=true is required.
+Demo users:
   - admin (ADMIN)
   - bcms_manager (BCMS_MANAGER)
   - director (APPROVER)
@@ -26,6 +27,10 @@ from datetime import date, datetime
 
 
 def seed():
+    from app.config import settings
+    password = os.environ.get('BCMS_DEMO_PASSWORD', '')
+    if not settings.DEBUG or len(password) < 12:
+        raise RuntimeError('Use an isolated DEBUG=true database and explicit BCMS_DEMO_PASSWORD (12+ characters).')
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
@@ -65,7 +70,7 @@ def seed():
         db.flush()
 
         # Users
-        pwd = hash_password("Admin123!")
+        pwd = hash_password(password)
         admin = User(
             username="admin", email="admin@fstu.uz", hashed_password=pwd,
             first_name="Muhammadali", last_name="Aliyev",
@@ -184,7 +189,7 @@ def seed():
 
         db.commit()
         print("Demo ma'lumotlar muvaffaqiyatli yuklandi!")
-        print("\nDemo foydalanuvchilar (parol: Admin123!):")
+        print("\nDemo foydalanuvchilar (parol muhit orqali berilgan):")
         print("  admin       — ADMIN")
         print("  bcms_manager — BCMS_MANAGER")
         print("  director    — APPROVER")

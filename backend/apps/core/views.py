@@ -1,7 +1,9 @@
-from rest_framework import viewsets, permissions
+from rest_framework import viewsets
+from rest_framework.filters import OrderingFilter, SearchFilter
+
+from apps.authentication.permissions import IsTenantMember
 from apps.core.models import AuditLog
 from apps.core.serializers import AuditLogSerializer
-from apps.authentication.permissions import IsTenantMember
 
 
 class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
@@ -10,11 +12,13 @@ class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
     Faqat joriy tashkilotga tegishli audit yozuvlarini qaytaradi.
     Tahrirlash va o'chirish bloklangan.
     """
+
     serializer_class = AuditLogSerializer
+    filter_backends = [SearchFilter, OrderingFilter]
+    search_fields = ["actor__username", "action", "entity", "entity_id"]
+    ordering_fields = ["timestamp", "id"]
     permission_classes = [IsTenantMember]
 
     def get_queryset(self):
         user = self.request.user
-        if user.is_superuser:
-            return AuditLog.objects.all()
         return AuditLog.objects.filter(organization=user.organization)

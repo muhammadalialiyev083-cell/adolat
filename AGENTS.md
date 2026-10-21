@@ -1,36 +1,47 @@
-# AGENTS.md — BCMS Designer
+# AGENTS.md · RiskGuard BCMS Designer
 
-Modular monolith: `backend/` (Django 3.12 + DRF, Python 3.12) + `frontend/` (React 18 + TS + Vite). DB is SQLite at `backend/db.sqlite3` (`settings.py`); no Postgres needed locally. No git repo, no CI, no lint/typecheck config.
+Maintain the existing Django modular monolith (`backend/`) and React/TS/Vite
+frontend (`frontend/`). `backend_fastapi/` is historical and is not the active API.
+See README and docs/PROGRESS.md for current verified state. Never reset user data.
 
-## Entrypoints
+## Commands
 
-- Backend wiring: `backend/bcms_backend/settings.py`, `backend/bcms_backend/urls.py`. One DRF `DefaultRouter` under `api/v1/` + explicit paths for auth, analyses, dashboard.
-- Domain apps: `backend/apps/{authentication,organizations,processes,bia,risks,engine,plans,simulation,reports,core}`. `core` owns immutable `AuditLog` + `seed_demo_data` command.
-- Frontend is effectively a monolith: `frontend/src/App.tsx` (all tabs), `frontend/src/api/client.ts` (all endpoints), `frontend/src/types/`. Django serves built UI: `TEMPLATES.DIRS` → `frontend/dist`, static → `frontend/dist/assets`.
+Use Python 3.12 and an isolated virtual environment. Install
+`backend/requirements-dev.txt`. Configure `.env` from the empty `.env.example`;
+local `DEBUG=true`, generated SECRET_KEY, explicit ALLOWED_HOSTS. Production
+requires PostgreSQL, SECRET_KEY, DEBUG=false and exact origins.
 
-## Commands (run from indicated dir)
+- `cd backend && python manage.py check && python -m pytest`
+- `cd backend && python manage.py makemigrations --check --dry-run`
+- `cd frontend && npm run lint && npm run typecheck && npm test && npm run build`
+- `python -m ruff check backend/apps backend/bcms_backend backend/tests`
+- `bash scripts/check.sh` from repo root with environment configured.
+- Explicit local demo: `python manage.py seed_demo_data` with BCMS_DEMO_PASSWORD;
+  never production, never reset existing passwords. No shared default password.
+- First real organization: interactive `bootstrap_organization` command.
 
-```powershell
-cd backend
-python manage.py runserver 127.0.0.1:8000
-python -m pytest                                   # full suite, 19 tests
-python -m pytest tests/test_auth_rbac.py::TestAuthenticationAndAudit::test_login_invalid_credentials_fails -q  # single test
-python manage.py seed_demo_data                    # pilot org + demo users (password: Admin123!)
-python manage.py migrate                           # after model changes; no custom migration workflow
+Django can serve frontend/dist through WhiteNoise. Run npm build after UI edits.
+Vite dev proxies /api to 127.0.0.1:8000. Auth/analysis/report/workflow paths lack a
+trailing slash; router resources/actions require it. Lists are paginated;
+page_size defaults to 20, maximum 100. Server-side search/order/filter contract is
+in each viewset. Hash routes preserve the current workspace page.
 
-cd ../frontend
-npm run dev     # Vite :5173, proxies /api -> 127.0.0.1:8000
-npm run build   # REQUIRED after any frontend change — Django serves frontend/dist
-```
+## Invariants
 
-Frontend has no test/lint scripts (`dev|build|preview` only). `pytest.ini` sets `DJANGO_SETTINGS_MODULE=bcms_backend.settings`; always run pytest from `backend/`.
+Session + CSRF authentication; no Basic auth or frontend-stored tokens. All tenant
+relations use TenantSerializer. TenantViewSet enforces DomainPermission, owner
+policy, atomic writes, auditing and protected deletion. Cross-tenant IDs return
+404. Even superusers stay in their organization for ordinary API resources.
 
-## Gotchas agents miss
+RTO < MTPD. Risk ordinal score = likelihood × impact, 1..25. Priority weights
+0.40/0.25/0.20/0.15 stay explicit; missing evidence returns null. Canonical time
+fields are integer seconds; compatible hour/minute API fields remain.
 
-- **Trailing-slash split:** auth (`api/v1/auth/login|logout|me`), analyses (`api/v1/analyses/priority|evaluate-risk|evaluate-strategy`), dashboard (`api/v1/reports/organization`) have **no** trailing slash; all router resources (`processes/`, `bia/`, `risks/`, `plans/`, …) **require** it. Custom actions: `bia/{id}/approve/`, `plans/{id}/publish/`, `plans/{id}/export_pdf/`, `scenarios/{id}/simulate/` (all POST except PDF export GET).
-- **Auth is Session + Basic** (`credentials: 'include'` in `api/client.ts`), not token — despite `rest_framework.authtoken` in `INSTALLED_APPS`. Demo logins: `admin` / `bcms_manager` / `director`, password `Admin123!`.
-- **List responses are paginated** (`PAGE_SIZE: 50`): read `response.results`, not the raw array.
-- **Multi-tenant isolation by org-filtered querysets:** cross-org access returns **404**, not 403 — this is correct behavior (see `test_tenant_data_isolation_*`). Never "fix" it to 403 or broaden querysets.
-- **AuditLog is immutable:** `apps/core/models.py:54-60` raises `PermissionDenied` on update/delete; `AuditLogViewSet` is `ReadOnlyModelViewSet`. Tests assert this — do not add update/delete paths.
-- **Enforced domain invariants:** BIA rejects `RTO > MTPD` with 400; risk score = `likelihood × impact` (1–25, thresholds ≤6/7–14/≥15); priority = `0.40·Impact + 0.25·Urgency + 0.20·Risk + 0.15·Dependency`; RPO gap when `backup_interval > rpo_minutes`. Keep these formulas exact.
-- `TIME_ZONE = Asia/Tashkent`, `DEBUG = True`, `ALLOWED_HOSTS = ['*']`, `CORS_ALLOW_ALL_ORIGINS = True` — dev-only posture, do not "harden" without being asked.
+Dependency from → to means from depends on to. Mandatory cycles must not yield a
+successful schedule. ScheduleRun stores identical A/B inputs, constraints and
+algorithm version. No mathematical optimality claim for the scheduling heuristic.
+
+Published/approved/archive plan content is immutable through the API. Export
+uses snapshot; editing creates a new draft. Latest BIA must be approved before
+publishing a complete plan. Audit is read-only; never log passwords/tokens.
+Synthetic data/results must be labeled. Never claim unrun tests or external deploys.
