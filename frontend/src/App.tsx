@@ -220,7 +220,11 @@ function Sidebar({
   const quickKeys = ["dashboard", "initial-setup", "menu", "catalog", "wizard"];
   const quickItems = NAV_ITEMS.filter((item) => quickKeys.includes(item.key) && (!search || matches(item)));
   const toggleGroup = (key: string) => {
-    if (collapsed) onToggleCollapse();
+    if (collapsed) {
+      onToggleCollapse();
+      setExpandedGroups((prev) => prev.includes(key) ? prev : [...prev, key]);
+      return;
+    }
     setExpandedGroups((prev) => prev.includes(key) ? prev.filter((x) => x !== key) : [...prev, key]);
   };
   const navButton = (item: (typeof NAV_ITEMS)[number], isChild = false) => {
@@ -312,7 +316,7 @@ function Header({
   return (
     <header className="app-header">
       <button type="button" className="spark-menu-trigger" onClick={onMenuToggle} aria-label="Navigatsiya menyusini ochish yoki yopish"><Menu size={20}/></button>
-            {/* Left: Logo area (mirrored sidebar brand, hidden on desktop) */}
+      {/* Organization badge */}
       <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1 }}>
         <div
           className="brand-logo"
