@@ -16,6 +16,9 @@ import {
   FileText,
   GitBranch,
   Layers,
+  FolderOpen,
+  ListTree,
+  ClipboardCheck,
   LogOut,
   Moon,
   PlayCircle,
@@ -30,6 +33,7 @@ import {
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { api, ApiError } from "./api/client";
 import { Dashboard } from "./components/Dashboard";
+import { InitialSetupWizard, ModuleCatalog, ModuleMenu } from "./components/NavigationHub";
 import {
   CONFIGS,
   GraphPanel,
@@ -116,6 +120,9 @@ const NAV_ITEMS: {
   frCode: string;
 }[] = [
   { key: "dashboard", label: "Boshqaruv paneli", icon: BarChart3, frCode: "" },
+  { key: "initial-setup", label: "Boshlang‘ich sozlash (1–4)", icon: ClipboardCheck, frCode: "" },
+  { key: "menu", label: "Interaktiv menyu", icon: ListTree, frCode: "" },
+  { key: "catalog", label: "Modullar katalogi", icon: FolderOpen, frCode: "" },
   { key: "wizard", label: "BCMS loyihalash ustasi", icon: Target, frCode: "" },
   {
     key: "organizations",
@@ -1013,6 +1020,11 @@ export function App() {
               {activeTab === "dashboard" && (
                 <Dashboard onNavigate={navigate} revision={workspaceRevision} />
               )}
+              {activeTab === "initial-setup" && (
+                <InitialSetupWizard onNavigate={navigate} revision={workspaceRevision} />
+              )}
+              {activeTab === "menu" && <ModuleMenu onNavigate={navigate} />}
+              {activeTab === "catalog" && <ModuleCatalog onNavigate={navigate} />}
               {activeTab === "wizard" && (
                 <Wizard onNavigate={navigate} revision={workspaceRevision} />
               )}
