@@ -2,6 +2,12 @@ import { RiskMatrix, BIARanking } from "./components/Analysis";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   AlertTriangle,
+  ArrowLeft,
+  ChevronDown,
+  Menu,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Search,
   BarChart3,
   BookOpen,
   Building,
@@ -175,135 +181,113 @@ const NAV_ITEMS: {
   },
 ];
 
+const MENU_GROUPS = [
+  { key: "organization", label: "Tashkilot boshqaruvi", icon: Building, items: ["organizations", "departments", "users", "services", "processes", "assets"] },
+  { key: "analysis", label: "Risk va BIA tahlili", icon: AlertTriangle, items: ["dependencies", "bia", "risks", "controls"] },
+  { key: "recovery", label: "Tiklash va uzluksizlik", icon: RefreshCw, items: ["strategies", "resources", "schedule", "plans", "scenarios", "simulation-runs"] },
+  { key: "monitoring", label: "Monitoring va audit", icon: Shield, items: ["exercises", "audit-logs", "password"] },
+] as const;
+
 function Sidebar({
   activeTab,
   setActiveTab,
   dashboard,
+  collapsed,
+  onToggleCollapse,
+  mobileOpen,
+  onMobileClose,
 }: {
   activeTab: TabKey;
   setActiveTab: (t: TabKey) => void;
   dashboard: DashboardSummary | null;
+  collapsed: boolean;
+  onToggleCollapse: () => void;
+  mobileOpen: boolean;
+  onMobileClose: () => void;
 }) {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [expandedGroups, setExpandedGroups] = useState<string[]>(() => {
+    const group = MENU_GROUPS.find((g) => g.items.some((key) => key === location.hash.slice(2).split("?")[0]));
+    return group ? [group.key] : ["organization"];
+  });
+  useEffect(() => {
+    const group = MENU_GROUPS.find((g) => g.items.some((key) => key === activeTab));
+    if (group) setExpandedGroups((prev) => prev.includes(group.key) ? prev : [...prev, group.key]);
+  }, [activeTab]);
+  const search = searchTerm.toLocaleLowerCase("uz").trim();
+  const matches = (item: (typeof NAV_ITEMS)[number]) => item.label.toLocaleLowerCase("uz").includes(search);
+  const navigateTo = (key: string) => { setActiveTab(key); onMobileClose(); };
+  const quickKeys = ["dashboard", "initial-setup", "menu", "catalog", "wizard"];
+  const quickItems = NAV_ITEMS.filter((item) => quickKeys.includes(item.key) && (!search || matches(item)));
+  const toggleGroup = (key: string) => {
+    if (collapsed) {
+      onToggleCollapse();
+      setExpandedGroups((prev) => prev.includes(key) ? prev : [...prev, key]);
+      return;
+    }
+    setExpandedGroups((prev) => prev.includes(key) ? prev.filter((x) => x !== key) : [...prev, key]);
+  };
+  const navButton = (item: (typeof NAV_ITEMS)[number], isChild = false) => {
+    const Icon = item.icon;
+    const alert = item.key === "risks" ? dashboard?.high_risks_count : item.key === "bia" ? dashboard?.rpo_gap_count : 0;
+    return (
+      <button
+        key={item.key}
+        type="button"
+        title={collapsed ? item.label : undefined}
+        aria-current={activeTab === item.key ? "page" : undefined}
+        onClick={() => navigateTo(item.key)}
+        className={`nav-item spark-nav-link${activeTab === item.key ? " active" : ""}${isChild ? " nested" : ""}`}
+      >
+        <Icon size={18} className="nav-icon" aria-hidden="true" />
+        <span className="spark-nav-label">{item.label}</span>
+        {!!alert && !collapsed && <span className="nav-badge">{alert}</span>}
+      </button>
+    );
+  };
   return (
     <motion.aside
-      initial={{ x: -30 }}
-      animate={{ x: 0 }}
-      transition={{ type: "spring", stiffness: 300, damping: 30 }}
-      className="app-sidebar"
+      initial={false}
+      className={`app-sidebar spark-sidebar${mobileOpen ? " mobile-open" : ""}`}
+      aria-label="Asosiy navigatsiya"
     >
-      {/* Brand Section */}
-      <div
-        style={{
-          padding: "8px 4px 20px",
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-        }}
-      >
-        <div className="brand-logo">
-          <AnimatedShield size={22} color="white" animate={false} />
-        </div>
-        <div>
-          <div
-            style={{
-              fontWeight: 800,
-              fontSize: 13,
-              color: "white",
-              letterSpacing: "-0.02em",
-            }}
-          >
-            RiskGuard
-          </div>
-          <div
-            style={{
-              fontSize: 10,
-              color: "rgba(255,255,255,0.35)",
-              letterSpacing: "0.04em",
-            }}
-          >
-            Biznes uzluksizligini loyihalash
-          </div>
-        </div>
+      <div className="spark-sidebar-brand">
+        <button type="button" className="spark-brand-button" onClick={() => navigateTo("dashboard")} title="Boshqaruv paneli">
+          <span className="spark-brand-symbol"><Shield size={21} /></span>
+          <span className="spark-brand-copy"><strong>UzHi <span>RiskGuard</span></strong><small>Biznes uzluksizligi platformasi</small></span>
+        </button>
+        <button type="button" className="spark-sidebar-collapse" aria-label={collapsed ? "Menyuni kengaytirish" : "Menyuni yig‘ish"} title={collapsed ? "Menyuni kengaytirish" : "Menyuni yig‘ish"} onClick={onToggleCollapse}>
+          {collapsed ? <PanelLeftOpen size={17}/> : <PanelLeftClose size={17}/>}
+        </button>
       </div>
-
-      <div className="nav-section-label">Asosiy Modullar</div>
-
-      {NAV_ITEMS.map((item) => {
-        const Icon = item.icon;
-        const hasAlert =
-          (item.key === "risks" &&
-            dashboard &&
-            dashboard.high_risks_count > 0) ||
-          (item.key === "bia" && dashboard && dashboard.rpo_gap_count > 0);
-        return (
-          <motion.button
-            key={item.key}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            className={`nav-item ${activeTab === item.key ? "active" : ""}`}
-            onClick={() => setActiveTab(item.key)}
-            title={item.frCode}
-            transition={{ duration: 0.2 }}
-          >
-            <Icon size={16} className="nav-icon" />
-            <span style={{ flex: 1, fontSize: 13 }}>{item.label}</span>
-            {hasAlert && (
-              <span className="nav-badge">
-                {item.key === "risks"
-                  ? dashboard?.high_risks_count
-                  : dashboard?.rpo_gap_count}
-              </span>
-            )}
-          </motion.button>
-        );
-      })}
-
-      {/* Bottom: ISO Badge */}
-      <div style={{ marginTop: "auto", padding: "16px 8px 8px" }}>
-        <div
-          style={{
-            background: "rgba(8,127,134,0.08)",
-            border: "1px solid rgba(8,127,134,0.15)",
-            borderRadius: 10,
-            padding: "10px 12px",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              marginBottom: 4,
-            }}
-          >
-            <BookOpen size={12} color="#087f86" />
-            <span
-              style={{
-                fontSize: 10,
-                fontWeight: 700,
-                color: "#087f86",
-                letterSpacing: "0.06em",
-              }}
-            >
-              STANDARTLAR ASOSI
-            </span>
-          </div>
-          <div
-            style={{
-              fontSize: 10,
-              color: "rgba(255,255,255,0.35)",
-              lineHeight: 1.6,
-            }}
-          >
-            ISO 22301:2019
-            <br />
-            BCMS metodologiyasi
-            <br />
-            Talablarni xaritalash
-            <br />
-            Sertifikat da’vosi emas
-          </div>
-        </div>
+      <div className="spark-nav-search">
+        <Search size={16} aria-hidden="true"/>
+        <input aria-label="Menyudan modul qidirish" placeholder="Modulni qidirish…" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}/>
+      </div>
+      <nav className="spark-nav-sections">
+        <div className="nav-section-label">Ish maydoni</div>
+        {quickItems.map((item) => navButton(item))}
+        {MENU_GROUPS.map((group) => {
+          const matching = NAV_ITEMS.filter((item) => group.items.some((key) => key === item.key) && (!search || matches(item)));
+          if (!matching.length) return null;
+          const Icon = group.icon;
+          const isExpanded = expandedGroups.includes(group.key) || Boolean(search);
+          return (
+            <div key={group.key} className="spark-nav-group">
+              <button type="button" className={`spark-group-toggle${matching.some((i) => i.key === activeTab) ? " group-active" : ""}`} aria-expanded={isExpanded} title={collapsed ? group.label : undefined} onClick={() => toggleGroup(group.key)}>
+                <Icon size={18} aria-hidden="true" />
+                <span className="spark-nav-label">{group.label}</span>
+                <ChevronDown className={`spark-group-chevron${isExpanded ? " is-expanded" : ""}`} size={15} aria-hidden="true"/>
+              </button>
+              {isExpanded && !collapsed && <div className="spark-nested-list">{matching.map((item) => navButton(item,true))}</div>}
+            </div>
+          );
+        })}
+        {search && !quickItems.length && !MENU_GROUPS.some((group) => NAV_ITEMS.some((item) => group.items.some((key) => key === item.key) && matches(item))) &&
+          <p className="spark-search-empty">Modul topilmadi</p>}
+      </nav>
+      <div className="spark-sidebar-bottom">
+        <Shield size={16}/><span>ISO 22301 metodologiyasi<br/><small>Sertifikat da’vosi emas</small></span>
       </div>
     </motion.aside>
   );
@@ -319,6 +303,7 @@ function Header({
   loading,
   theme,
   onThemeToggle,
+  onMenuToggle,
 }: {
   currentUser: any;
   onLogout: () => void;
@@ -326,10 +311,12 @@ function Header({
   loading: boolean;
   theme: string;
   onThemeToggle: () => void;
+  onMenuToggle: () => void;
 }) {
   return (
     <header className="app-header">
-      {/* Left: Logo area (mirrored sidebar brand, hidden on desktop) */}
+      <button type="button" className="spark-menu-trigger" onClick={onMenuToggle} aria-label="Navigatsiya menyusini ochish yoki yopish"><Menu size={20}/></button>
+      {/* Organization badge */}
       <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1 }}>
         <div
           className="brand-logo"
@@ -711,6 +698,13 @@ export function App() {
   const [activeTab, setActiveTab] = useState<TabKey>(
     () => location.hash.slice(2).split("?")[0] || "dashboard",
   );
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const pageTrail = useRef<string[]>([]);
+  const toggleSidebar = useCallback(() => {
+    if (window.matchMedia("(max-width: 768px)").matches) setMobileNavOpen((open) => !open);
+    else setSidebarCollapsed((closed) => !closed);
+  }, []);
   const [loading, setLoading] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const toastIdRef = useRef(0);
@@ -728,6 +722,8 @@ export function App() {
     // Ignore pending responses belonging to the previous session.
     dataRequestIdRef.current += 1;
     setDashboard(null);
+    pageTrail.current = [];
+    setMobileNavOpen(false);
     setActiveTab("dashboard");
     location.hash = "/dashboard";
     setToasts([]);
@@ -883,8 +879,18 @@ export function App() {
     void loadData();
   }, [loadData]);
   const navigate = useCallback((key: string, query = "") => {
+    const current = location.hash.slice(2).split("?")[0] || "dashboard";
+    if (current !== key) pageTrail.current.push(current);
     location.hash = "/" + key + (query ? "?" + query : "");
     setActiveTab(key);
+    setMobileNavOpen(false);
+    setWorkspaceRevision((value) => value + 1);
+  }, []);
+  const goBack = useCallback(() => {
+    const destination = pageTrail.current.pop() || "dashboard";
+    location.hash = "/" + destination;
+    setActiveTab(destination);
+    setMobileNavOpen(false);
     setWorkspaceRevision((value) => value + 1);
   }, []);
   useEffect(() => {
@@ -927,7 +933,7 @@ export function App() {
   }
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell${sidebarCollapsed ? " sidebar-collapsed" : ""}${mobileNavOpen ? " mobile-nav-open" : ""}`}>
       <a className="skip-link" href="#main-content">
         Asosiy mazmunga o‘tish
       </a>
@@ -945,13 +951,19 @@ export function App() {
         loading={loading}
         theme={theme}
         onThemeToggle={toggleTheme}
+        onMenuToggle={toggleSidebar}
       />
 
       {/* Sidebar */}
+      {mobileNavOpen && <button type="button" className="spark-mobile-backdrop" aria-label="Menyuni yopish" onClick={() => setMobileNavOpen(false)}/>}
       <Sidebar
         activeTab={activeTab}
         setActiveTab={navigate}
         dashboard={dashboard}
+        collapsed={sidebarCollapsed}
+        onToggleCollapse={() => setSidebarCollapsed((closed) => !closed)}
+        mobileOpen={mobileNavOpen}
+        onMobileClose={() => setMobileNavOpen(false)}
       />
 
       {/* Main Content */}
@@ -973,6 +985,24 @@ export function App() {
               }}
             />
           )}
+
+          {/* Context navigation */}
+          <div className="spark-breadcrumb-row">
+            <button type="button" className="spark-back-button" onClick={goBack} disabled={activeTab === "dashboard"} aria-label="Oldingi sahifaga qaytish">
+              <ArrowLeft size={17}/> Orqaga
+            </button>
+            <nav aria-label="Sahifa yo‘li" className="spark-breadcrumb">
+              <button type="button" onClick={() => navigate("dashboard")}>Boshqaruv paneli</button>
+              {activeTab !== "dashboard" && <>
+                <ChevronRight size={14} aria-hidden="true" />
+                {MENU_GROUPS.some((group) => group.items.some((item) => item === activeTab)) && <>
+                  <button type="button" onClick={() => navigate("menu")}>{MENU_GROUPS.find((group) => group.items.some((item) => item === activeTab))?.label}</button>
+                  <ChevronRight size={14} aria-hidden="true" />
+                </>}
+                <span aria-current="page">{meta.title}</span>
+              </>}
+            </nav>
+          </div>
 
           {/* Page Header */}
           <div
