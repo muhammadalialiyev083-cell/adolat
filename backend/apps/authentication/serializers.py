@@ -125,8 +125,10 @@ class UserCreateUpdateSerializer(TenantSerializer):
 
 
 class LoginSerializer(serializers.Serializer):
-    username = serializers.CharField(required=True)
-    password = serializers.CharField(required=True, write_only=True, trim_whitespace=False)
+    username = serializers.CharField(required=True, max_length=150)
+    password = serializers.CharField(
+        required=True, write_only=True, trim_whitespace=False, max_length=4096
+    )
 
     def validate(self, attrs):
         username = attrs.get("username")

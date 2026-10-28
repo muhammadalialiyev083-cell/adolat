@@ -31,6 +31,10 @@ class BIAAssessmentSerializer(TenantSerializer):
 
     class Meta:
         model = BIAAssessment
+        # Revision is allocated in TenantSerializer after field validation.
+        # DRF's generated validator otherwise tests model default revision=1
+        # before allocation and rejects a legitimate next assessment.
+        validators = []
         fields = [
             "process_owner_id",
             "id",
@@ -53,9 +57,19 @@ class BIAAssessmentSerializer(TenantSerializer):
             "updated_at",
         ]
         fields += ["rationale", "data_source", "impact_weights", "recommended_values"]
-        fields += ["questionnaire", "evidence", "evidence_required", "created_by", "approved_snapshot", "review_notes", "missing_evidence"]
+        fields += [
+            "questionnaire",
+            "evidence",
+            "evidence_required",
+            "created_by",
+            "approved_snapshot",
+            "review_notes",
+            "missing_evidence",
+        ]
         read_only_fields = [
-            "created_by", "approved_snapshot", "review_notes",
+            "created_by",
+            "approved_snapshot",
+            "review_notes",
             "id",
             "organization",
             "approved_by",
@@ -65,7 +79,11 @@ class BIAAssessmentSerializer(TenantSerializer):
         ]
 
     def validate(self, attrs):
-        if self.instance and self.instance.evidence_required and attrs.get("evidence_required") is False:
+        if (
+            self.instance
+            and self.instance.evidence_required
+            and attrs.get("evidence_required") is False
+        ):
             raise serializers.ValidationError({"evidence_required": "Dalil talabi o‘chirilmaydi."})
         if attrs.get("evidence") or attrs.get("questionnaire"):
             attrs["evidence_required"] = True
@@ -73,9 +91,7 @@ class BIAAssessmentSerializer(TenantSerializer):
         rto = attrs.get("rto_hours") or (self.instance.rto_hours if self.instance else None)
         if rto is not None and mtpd is not None and rto >= mtpd:
             raise serializers.ValidationError(
-                {
-                    "rto_hours": "RTO MTPDdan qat’iy qisqa bo‘lishi kerak (RTO < MTPD)."
-                }
+                {"rto_hours": "RTO MTPDdan qat’iy qisqa bo‘lishi kerak (RTO < MTPD)."}
             )
         impacts = attrs.get("impacts", [])
         horizons = [i["horizon_hours"] for i in impacts]

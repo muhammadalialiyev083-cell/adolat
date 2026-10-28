@@ -29,7 +29,9 @@ class BIAAssessmentViewSet(TenantViewSet):
         if bia.organization.separation_of_duties and (
             not bia.created_by_id or request.user.pk in {bia.created_by_id, bia.process.owner_id}
         ):
-            raise ValidationError({"approval": "Mustaqil tasdiqlovchi va ma’lum muallif talab qilinadi."})
+            raise ValidationError(
+                {"approval": "Mustaqil tasdiqlovchi va ma’lum muallif talab qilinadi."}
+            )
         if bia.evidence_required and missing_evidence(bia):
             raise ValidationError({"evidence": missing_evidence(bia)})
         if bia.evidence_required:
@@ -38,8 +40,10 @@ class BIAAssessmentViewSet(TenantViewSet):
         snapshot = dict(self.get_serializer(bia).data)
         snapshot.pop("approved_snapshot", None)
         snapshot["process_context"] = {
-            "name": bia.process.name, "department_id": bia.process.department_id,
-            "owner_id": bia.process.owner_id, "service_id": bia.process.service_id,
+            "name": bia.process.name,
+            "department_id": bia.process.department_id,
+            "owner_id": bia.process.owner_id,
+            "service_id": bia.process.service_id,
             "working_hours": bia.process.working_hours,
         }
         bia.approved_snapshot = snapshot
@@ -52,6 +56,27 @@ class BIAAssessmentViewSet(TenantViewSet):
             after_state=self.get_serializer(bia).data,
         )
         return Response({"message": "BIA tasdiqlandi.", "bia": self.get_serializer(bia).data})
+
+    @action(detail=True, methods=["post"])
+    @transaction.atomic
+    def submit(self, request, pk=None):
+        bia = self.get_queryset().select_for_update().get(pk=self.get_object().pk)
+        if bia.status not in {"DRAFT", "REJECTED"}:
+            raise ValidationError(
+                {"status": "Faqat qoralama yoki qaytarilgan baholashni yuboring."}
+            )
+        if bia.evidence_required and missing_evidence(bia):
+            raise ValidationError({"evidence": missing_evidence(bia)})
+        bia.status = "SUBMITTED"
+        bia.save()
+        record_audit(
+            request,
+            action="UPDATE",
+            entity="BIAAssessment",
+            entity_id=bia.pk,
+            after_state={"status": bia.status},
+        )
+        return Response(self.get_serializer(bia).data)
 
     @action(detail=True, methods=["post"])
     @transaction.atomic
@@ -76,21 +101,38 @@ class BIAAssessmentViewSet(TenantViewSet):
         bia = self.get_queryset().select_for_update().get(pk=self.get_object().pk)
         decision = request.data.get("decision")
         notes = request.data.get("notes", "")
-        if bia.status not in {"DRAFT", "SUBMITTED"} or decision not in {"reject", "request_changes"}:
-            raise ValidationError({"decision": "Faol qoralama uchun reject yoki request_changes tanlang."})
+        if bia.status not in {"DRAFT", "SUBMITTED"} or decision not in {
+            "reject",
+            "request_changes",
+        }:
+            raise ValidationError(
+                {"decision": "Faol qoralama uchun reject yoki request_changes tanlang."}
+            )
         if not isinstance(notes, str) or not notes.strip() or len(notes) > 4000:
             raise ValidationError({"notes": "Ko‘rib chiqish sababini kiriting (4000 belgigacha)."})
         bia.status = "REJECTED" if decision == "reject" else "DRAFT"
         bia.review_notes = notes.strip()
         bia.save()
-        record_audit(request, action="UPDATE", entity="BIAAssessment", entity_id=bia.pk, after_state={"decision": decision, "notes": bia.review_notes, "status": bia.status})
+        record_audit(
+            request,
+            action="UPDATE",
+            entity="BIAAssessment",
+            entity_id=bia.pk,
+            after_state={"decision": decision, "notes": bia.review_notes, "status": bia.status},
+        )
         return Response(self.get_serializer(bia).data)
 
     @action(detail=True, methods=["get"])
     def summary(self, request, pk=None):
         bia = self.get_object()
-        data = bia.approved_snapshot if bia.status == "APPROVED" and bia.approved_snapshot else self.get_serializer(bia).data
+        data = (
+            bia.approved_snapshot
+            if bia.status == "APPROVED" and bia.approved_snapshot
+            else self.get_serializer(bia).data
+        )
         record_audit(request, action="EXPORT", entity="BIAAssessment", entity_id=bia.pk)
         response = JsonResponse(data, json_dumps_params={"ensure_ascii": False, "indent": 2})
-        response["Content-Disposition"] = f'attachment; filename="bia-{bia.pk}-v{bia.revision}.json"'
+        response["Content-Disposition"] = (
+            f'attachment; filename="bia-{bia.pk}-v{bia.revision}.json"'
+        )
         return response

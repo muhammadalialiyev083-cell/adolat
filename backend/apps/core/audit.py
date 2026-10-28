@@ -40,7 +40,18 @@ def record_audit(
             return {
                 key: redact(item)
                 for key, item in value.items()
-                if not any(secret in key.lower() for secret in ["password", "token", "secret"])
+                if not any(
+                    secret in key.lower()
+                    for secret in [
+                        "password",
+                        "token",
+                        "secret",
+                        "authorization",
+                        "cookie",
+                        "credential",
+                        "api_key",
+                    ]
+                )
             }
         if isinstance(value, list):
             return [redact(item) for item in value]

@@ -49,6 +49,94 @@ const roleOptions: [string, string][] = [
 const processField = relation("process", "Jarayon", "processes", true);
 const ownerField = relation("owner", "Mas’ul", "users");
 export const CONFIGS: Record<string, Config> = {
+  tasks: {
+    title: "Vazifalar",
+    fields: [
+      f("title", "Vazifa nomi", "text", { required: true }),
+      f("description", "Tavsif", "textarea"),
+      relation("assigned_to", "Mas’ul", "users", true),
+      options("priority", "Ustuvorlik", [
+        ["MEDIUM", "O‘rta"],
+        ["LOW", "Past"],
+        ["HIGH", "Yuqori"],
+        ["CRITICAL", "Kritik"],
+      ]),
+      options("status", "Holat", [
+        ["OPEN", "Ochiq"],
+        ["IN_PROGRESS", "Bajarilmoqda"],
+        ["BLOCKED", "To‘silgan"],
+        ["DONE", "Bajarilgan"],
+        ["CANCELLED", "Bekor qilingan"],
+      ]),
+      f("due_date", "Muddat", "date"),
+      options("entity_type", "Bog‘langan obyekt turi", [
+        ["", "Bog‘lanmagan"],
+        ["PROCESS", "Jarayon"],
+        ["BIA", "BIA"],
+        ["PLAN", "Reja"],
+        ["RISK", "Risk"],
+        ["EXERCISE", "Mashq"],
+        ["INCIDENT", "Hodisa"],
+      ]),
+      f("entity_id", "Obyekt IDsi", "number"),
+      f("completion_evidence", "Bajarish dalili", "textarea"),
+      f("resolution_notes", "Yechim izohi", "textarea"),
+    ],
+    columns: [
+      ["title", "Vazifa"],
+      ["assigned_name", "Mas’ul"],
+      ["priority", "Ustuvorlik"],
+      ["status", "Holat"],
+      ["due_date", "Muddat"],
+    ],
+    order: "due_date",
+  },
+  incidents: {
+    title: "Hodisalar",
+    fields: [
+      f("title", "Hodisa nomi", "text", { required: true }),
+      f("description", "Tavsif", "textarea"),
+      relation("owner", "Hodisa mas’uli", "users", true),
+      options("incident_type", "Hodisa turi", [
+        ["OTHER", "Boshqa uzilish"],
+        ["CYBERATTACK", "Kiberhujum"],
+        ["MALWARE", "Zararli dastur"],
+        ["DATA_BREACH", "Ma’lumot sizishi"],
+        ["NETWORK_OUTAGE", "Tarmoq uzilishi"],
+        ["SERVER_FAILURE", "Server nosozligi"],
+        ["POWER_FAILURE", "Elektr uzilishi"],
+        ["NATURAL_DISASTER", "Tabiiy ofat"],
+        ["SUPPLIER_OUTAGE", "Yetkazib beruvchi uzilishi"],
+        ["HUMAN_ERROR", "Inson xatosi"],
+      ]),
+      options("severity", "Jiddiylik", [
+        ["MEDIUM", "O‘rta"],
+        ["LOW", "Past"],
+        ["HIGH", "Yuqori"],
+        ["CRITICAL", "Kritik"],
+      ]),
+      f("reporting_source", "Aniqlash manbasi"),
+      f("affected_processes", "Ta’sirlangan jarayonlar", "multiple", {
+        source: "processes",
+      }),
+      f("affected_assets", "Ta’sirlangan aktivlar", "multiple", {
+        source: "assets",
+      }),
+      f("related_risks", "Bog‘liq risklar", "multiple", { source: "risks" }),
+      f("related_plans", "Tasdiqlangan tiklash rejalari", "multiple", {
+        source: "plans",
+      }),
+      f("business_impact", "Biznesga ta’sir", "textarea"),
+      f("containment_actions", "Cheklash choralari", "textarea"),
+    ],
+    columns: [
+      ["title", "Hodisa"],
+      ["severity", "Jiddiylik"],
+      ["status", "Holat"],
+      ["detected_at", "Aniqlanish vaqti"],
+    ],
+    order: "-detected_at",
+  },
   "simulation-runs": {
     title: "Simulyatsiya natijalari",
     fields: [],
@@ -524,6 +612,23 @@ const textValue = (value: any): string =>
         : "Yo‘q"
       : String(value);
 const translations: Record<string, string> = {
+  OPEN: "Ochiq",
+  IN_PROGRESS: "Bajarilmoqda",
+  BLOCKED: "To‘silgan",
+  DONE: "Bajarilgan",
+  CANCELLED: "Bekor qilingan",
+  DETECTED: "Aniqlangan",
+  TRIAGED: "Saralangan",
+  INVESTIGATING: "Tekshirilmoqda",
+  CONTAINED: "Cheklangan",
+  RECOVERY_IN_PROGRESS: "Tiklanmoqda",
+  MONITORING: "Kuzatilmoqda",
+  RESOLVED: "Hal qilingan",
+  CLOSED: "Yopilgan",
+  LOW: "Past",
+  MEDIUM: "O‘rta",
+  HIGH: "Yuqori",
+  CRITICAL: "Kritik",
   DRAFT: "Qoralama",
   IN_REVIEW: "Ko‘rib chiqishda",
   SUBMITTED: "Yuborilgan",
@@ -957,7 +1062,10 @@ function Editor({
                   : "assets"
                 : field.source;
               let rows = choices[source || ""] || [];
-              if (resource === "exercises" && source === "plans")
+              if (
+                ["exercises", "incidents"].includes(resource) &&
+                source === "plans"
+              )
                 rows = rows.filter((r) =>
                   ["APPROVED", "PUBLISHED"].includes(r.status),
                 );
@@ -1310,7 +1418,11 @@ export function ResourcePanel({
                 const locked = ["APPROVED", "PUBLISHED", "ARCHIVED"].includes(
                   row.status,
                 );
-                const own = user.role !== "PROCESS_OWNER" || (resource === "processes" ? row.owner === user.id : row.process_owner_id === user.id);
+                const own =
+                  user.role !== "PROCESS_OWNER" ||
+                  (resource === "processes"
+                    ? row.owner === user.id
+                    : row.process_owner_id === user.id);
                 return (
                   <tr key={row.id}>
                     {config.columns.map(([key]) => (
@@ -1334,7 +1446,9 @@ export function ResourcePanel({
                             >
                               Tahrirlash
                             </button>
-                            {resource !== "organizations" && (
+                            {!["organizations", "tasks", "incidents"].includes(
+                              resource,
+                            ) && (
                               <button
                                 className="btn btn-danger btn-sm"
                                 disabled={busy}

@@ -4,18 +4,17 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('authentication', '0003_bootstrap_initial_admin'),
+        ("authentication", "0003_bootstrap_initial_admin"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='LoginRateBucket',
+            name="LoginRateBucket",
             fields=[
-                ('key', models.CharField(max_length=100, primary_key=True, serialize=False)),
-                ('attempts', models.PositiveIntegerField(default=0)),
-                ('expires_at', models.DateTimeField(db_index=True)),
+                ("key", models.CharField(max_length=100, primary_key=True, serialize=False)),
+                ("attempts", models.PositiveIntegerField(default=0)),
+                ("expires_at", models.DateTimeField(db_index=True)),
             ],
         ),
     ]

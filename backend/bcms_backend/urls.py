@@ -6,8 +6,17 @@ from apps.authentication.views import (
     PasswordChangeView,
     UserViewSet,
 )
+from apps.authentication.oidc import BeginSSOView, CallbackSSOView, DiscoverSSOView
 from apps.bia.views import BIAAssessmentViewSet
-from apps.imports.views import ImportCommitView, ImportPreviewView, ImportTemplateView, ImportUploadView
+from apps.imports.views import (
+    ImportCommitView,
+    ImportPreviewView,
+    ImportTemplateView,
+    ImportUploadView,
+)
+from apps.management.views import ManagementDashboardView, TaskViewSet
+from apps.incidents.views import IncidentViewSet
+from apps.monitoring.views import AlertViewSet, DeliveryViewSet, IntegrationStatusView, WebhookView
 from apps.core.views import AuditLogViewSet
 from apps.engine.views import (
     EvaluateRiskAlgorithmView,
@@ -38,6 +47,10 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 router = DefaultRouter()
+router.register(r"tasks", TaskViewSet, basename="task")
+router.register(r"incidents", IncidentViewSet, basename="incident")
+router.register(r"monitoring-alerts", AlertViewSet, basename="monitoring-alert")
+router.register(r"monitoring-deliveries", DeliveryViewSet, basename="monitoring-delivery")
 router.register(r"simulation-runs", SimulationRunViewSet, basename="simulation-run")
 # Core & Auth
 router.register(r"resources", RecoveryResourceViewSet, basename="resource")
@@ -100,6 +113,12 @@ def ready(request):
 
 
 urlpatterns = [
+    path("api/v1/monitoring/integrations", IntegrationStatusView.as_view()),
+    path("api/v1/monitoring/webhook/<uuid:pk>", WebhookView.as_view()),
+    path("api/v1/management", ManagementDashboardView.as_view()),
+    path("api/v1/auth/sso/discover", DiscoverSSOView.as_view()),
+    path("api/v1/auth/sso/<slug:slug>/begin", BeginSSOView.as_view()),
+    path("api/v1/auth/sso/<slug:slug>/callback", CallbackSSOView.as_view()),
     path("api/v1/imports/upload", ImportUploadView.as_view()),
     path("api/v1/imports/<uuid:pk>/preview", ImportPreviewView.as_view()),
     path("api/v1/imports/<uuid:pk>/commit", ImportCommitView.as_view()),

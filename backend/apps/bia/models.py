@@ -56,7 +56,13 @@ class BIAAssessment(BaseTenantModel):
     questionnaire = models.JSONField(default=dict, blank=True)
     evidence = models.JSONField(default=list, blank=True)
     evidence_required = models.BooleanField(default=False)
-    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="created_bias")
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_bias",
+    )
     approved_snapshot = models.JSONField(default=dict, blank=True)
     review_notes = models.TextField(blank=True)
 
@@ -85,9 +91,7 @@ class BIAAssessment(BaseTenantModel):
         if self.rto_hours is not None and self.mtpd_hours is not None:
             if self.rto_hours >= self.mtpd_hours:
                 raise ValidationError(
-                    {
-                        "rto_hours": "RTO MTPDdan qat’iy qisqa bo‘lishi kerak (RTO < MTPD)."
-                    }
+                    {"rto_hours": "RTO MTPDdan qat’iy qisqa bo‘lishi kerak (RTO < MTPD)."}
                 )
 
     def save(self, *args, **kwargs):

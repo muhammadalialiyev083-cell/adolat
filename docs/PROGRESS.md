@@ -43,3 +43,11 @@ asset filename after rebuild. The HTML shell now reads the current built index
 and sends no-cache. Portable browser assertions scope edits to the created row,
 so repeated demo runs remain valid. Final SQLite 86 passed (24.49s), PostgreSQL
 86 passed (28.28s); client 10 passed, build passed; browser smoke passed.
+
+## 2026-10-28 — Enterprise Pilot v1.1
+
+`feat/enterprise-pilot-v1-1`: bazaviy 86 backend/10 client testi qayta bajarildi.
+Shared atomic DB throttling, strict production settings, import va BIA, OIDC login,
+task/incident/monitoring, additive migrations, CI, pilot hujjatlari qo‘shildi.
+Natija va aniq tekshiruvlar ENTERPRISE_V1_1_RELEASE.mdda. Real production deploy,
+IdP/monitoring ulanishi va tashkilot UATsi hali bajarilmagan.

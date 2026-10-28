@@ -16,14 +16,28 @@ export class ApiError extends Error {
 
 function errorMessage(data: unknown, status: number): string {
   if (data && typeof data === "object") {
-    const messages = Object.entries(data)
-      .filter(([key]) => key !== "code")
-      .map(([key, value]) => {
-        const message = Array.isArray(value) ? value.join(", ") : String(value);
-        return ["detail", "non_field_errors"].includes(key)
-          ? message
-          : `${key}: ${message}`;
-      });
+    const flatten = (value: unknown, path = ""): string[] => {
+      if (Array.isArray(value))
+        return value.flatMap((item, index) =>
+          flatten(
+            item,
+            typeof item === "object" ? `${path} ${index + 1}` : path,
+          ),
+        );
+      if (value && typeof value === "object")
+        return Object.entries(value)
+          .filter(([key]) => key !== "code")
+          .flatMap(([key, item]) =>
+            flatten(
+              item,
+              ["detail", "non_field_errors"].includes(key)
+                ? path
+                : [path, key].filter(Boolean).join(". "),
+            ),
+          );
+      return [path ? `${path}: ${String(value)}` : String(value)];
+    };
+    const messages = flatten(data);
     if (messages.length) return messages.join("\n");
   }
   return status >= 500
@@ -85,7 +99,8 @@ async function request<T>(
   retryCSRF = true,
 ): Promise<T> {
   const headers = new Headers(options.headers || {});
-  if (!(options.body instanceof FormData)) headers.set("Content-Type", "application/json");
+  if (!(options.body instanceof FormData))
+    headers.set("Content-Type", "application/json");
   const method = (options.method || "GET").toUpperCase();
   const mutating = ["POST", "PUT", "PATCH", "DELETE"].includes(method);
 
@@ -122,7 +137,8 @@ async function request<T>(
         (response.status === 403 &&
           typeof data?.detail === "string" &&
           data.detail.includes("Authentication credentials"))) &&
-      typeof window !== "undefined"
+      typeof window !== "undefined" &&
+      endpoint !== "/auth/me"
     ) {
       window.dispatchEvent(new Event("bcms:session-expired"));
     }
@@ -140,6 +156,18 @@ async function request<T>(
 }
 
 export const api = {
+  management: () => request<any>("/management"),
+  integrations: () => request<any[]>("/monitoring/integrations"),
+  discoverSSO: (organization_code: string) =>
+    request<{ enabled: boolean; provider: string | null }>(
+      "/auth/sso/discover",
+      { method: "POST", body: JSON.stringify({ organization_code }) },
+    ),
+  beginSSO: (provider: string, return_to: string) =>
+    request<{ authorization_url: string }>(
+      `/auth/sso/${encodeURIComponent(provider)}/begin`,
+      { method: "POST", body: JSON.stringify({ return_to }) },
+    ),
   uploadImport: (entity: string, file: File) => {
     const body = new FormData();
     body.append("entity", entity);
@@ -147,9 +175,15 @@ export const api = {
     return request<any>("/imports/upload", { method: "POST", body });
   },
   previewImport: (id: string, mapping: Record<string, string>) =>
-    request<any>(`/imports/${id}/preview`, { method: "POST", body: JSON.stringify({ mapping }) }),
+    request<any>(`/imports/${id}/preview`, {
+      method: "POST",
+      body: JSON.stringify({ mapping }),
+    }),
   commitImport: (id: string, decisions: Record<string, string>) =>
-    request<any>(`/imports/${id}/commit`, { method: "POST", body: JSON.stringify({ confirm: true, decisions }) }),
+    request<any>(`/imports/${id}/commit`, {
+      method: "POST",
+      body: JSON.stringify({ confirm: true, decisions }),
+    }),
   riskMatrix: () => request<any>("/reports/risk-matrix"),
   list: (resource: string, query = "") =>
     request<{ count: number; results: any[]; next: string | null }>(

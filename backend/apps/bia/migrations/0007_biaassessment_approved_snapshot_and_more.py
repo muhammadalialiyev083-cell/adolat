@@ -6,41 +6,46 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('bia', '0006_biaassessment_bia_unique_process_revision'),
+        ("bia", "0006_biaassessment_bia_unique_process_revision"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='biaassessment',
-            name='approved_snapshot',
+            model_name="biaassessment",
+            name="approved_snapshot",
             field=models.JSONField(blank=True, default=dict),
         ),
         migrations.AddField(
-            model_name='biaassessment',
-            name='created_by',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='created_bias', to=settings.AUTH_USER_MODEL),
+            model_name="biaassessment",
+            name="created_by",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="created_bias",
+                to=settings.AUTH_USER_MODEL,
+            ),
         ),
         migrations.AddField(
-            model_name='biaassessment',
-            name='evidence',
+            model_name="biaassessment",
+            name="evidence",
             field=models.JSONField(blank=True, default=list),
         ),
         migrations.AddField(
-            model_name='biaassessment',
-            name='evidence_required',
+            model_name="biaassessment",
+            name="evidence_required",
             field=models.BooleanField(default=False),
         ),
         migrations.AddField(
-            model_name='biaassessment',
-            name='questionnaire',
+            model_name="biaassessment",
+            name="questionnaire",
             field=models.JSONField(blank=True, default=dict),
         ),
         migrations.AddField(
-            model_name='biaassessment',
-            name='review_notes',
+            model_name="biaassessment",
+            name="review_notes",
             field=models.TextField(blank=True),
         ),
     ]

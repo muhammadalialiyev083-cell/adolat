@@ -17,8 +17,6 @@ import {
   Clock,
   Cpu,
   Database,
-  Eye,
-  EyeOff,
   FileText,
   GitBranch,
   Layers,
@@ -41,8 +39,16 @@ import { api, ApiError } from "./api/client";
 import { Dashboard } from "./components/Dashboard";
 import { UzHiLogo } from "./components/UzHiLogo";
 import { ImportWizard } from "./components/ImportWizard";
+import { LoginForm } from "./components/LoginForm";
+import { Management, IncidentWorkspace } from "./components/Operations";
+import { Integrations } from "./components/Integrations";
+import { safeHash } from "./api/navigation";
 import { BIAQuestionnaire } from "./components/BIAQuestionnaire";
-import { InitialSetupWizard, ModuleCatalog, ModuleMenu } from "./components/NavigationHub";
+import {
+  InitialSetupWizard,
+  ModuleCatalog,
+  ModuleMenu,
+} from "./components/NavigationHub";
 import {
   CONFIGS,
   GraphPanel,
@@ -130,7 +136,30 @@ const NAV_ITEMS: {
 }[] = [
   { key: "dashboard", label: "Boshqaruv paneli", icon: BarChart3, frCode: "" },
   { key: "imports", label: "Excel / CSV import", icon: Database, frCode: "" },
-  { key: "initial-setup", label: "Boshlang‘ich sozlash (1–4)", icon: ClipboardCheck, frCode: "" },
+  {
+    key: "management",
+    label: "Rahbariyat va vazifalar",
+    icon: ClipboardCheck,
+    frCode: "",
+  },
+  {
+    key: "incidents",
+    label: "Hodisalarni boshqarish",
+    icon: AlertTriangle,
+    frCode: "",
+  },
+  {
+    key: "integrations",
+    label: "Monitoring integratsiyalari",
+    icon: Cpu,
+    frCode: "",
+  },
+  {
+    key: "initial-setup",
+    label: "Boshlang‘ich sozlash (1–4)",
+    icon: ClipboardCheck,
+    frCode: "",
+  },
   { key: "menu", label: "Interaktiv menyu", icon: ListTree, frCode: "" },
   { key: "catalog", label: "Modullar katalogi", icon: FolderOpen, frCode: "" },
   { key: "wizard", label: "BCMS loyihalash ustasi", icon: Target, frCode: "" },
@@ -152,7 +181,12 @@ const NAV_ITEMS: {
     frCode: "",
   },
   { key: "bia", label: "Biznesga ta’sir (BIA)", icon: Clock, frCode: "" },
-  { key: "bia-questionnaire", label: "Dalilli BIA so‘rovnomasi", icon: ClipboardCheck, frCode: "" },
+  {
+    key: "bia-questionnaire",
+    label: "Dalilli BIA so‘rovnomasi",
+    icon: ClipboardCheck,
+    frCode: "",
+  },
   { key: "risks", label: "Risklar reyestri", icon: AlertTriangle, frCode: "" },
   { key: "controls", label: "Nazorat choralari", icon: Shield, frCode: "" },
   {
@@ -187,10 +221,52 @@ const NAV_ITEMS: {
 ];
 
 const MENU_GROUPS = [
-  { key: "organization", label: "Tashkilot boshqaruvi", icon: Building, items: ["organizations", "departments", "users", "services", "processes", "assets", "imports"] },
-  { key: "analysis", label: "Risk va BIA tahlili", icon: AlertTriangle, items: ["dependencies", "bia", "bia-questionnaire", "risks", "controls"] },
-  { key: "recovery", label: "Tiklash va uzluksizlik", icon: RefreshCw, items: ["strategies", "resources", "schedule", "plans", "scenarios", "simulation-runs"] },
-  { key: "monitoring", label: "Monitoring va audit", icon: Shield, items: ["exercises", "audit-logs", "password"] },
+  {
+    key: "organization",
+    label: "Tashkilot boshqaruvi",
+    icon: Building,
+    items: [
+      "organizations",
+      "departments",
+      "users",
+      "services",
+      "processes",
+      "assets",
+      "imports",
+    ],
+  },
+  {
+    key: "analysis",
+    label: "Risk va BIA tahlili",
+    icon: AlertTriangle,
+    items: ["dependencies", "bia", "bia-questionnaire", "risks", "controls"],
+  },
+  {
+    key: "recovery",
+    label: "Tiklash va uzluksizlik",
+    icon: RefreshCw,
+    items: [
+      "strategies",
+      "resources",
+      "schedule",
+      "plans",
+      "scenarios",
+      "simulation-runs",
+    ],
+  },
+  {
+    key: "monitoring",
+    label: "Monitoring va audit",
+    icon: Shield,
+    items: [
+      "management",
+      "incidents",
+      "integrations",
+      "exercises",
+      "audit-logs",
+      "password",
+    ],
+  },
 ] as const;
 
 function Sidebar({
@@ -212,29 +288,49 @@ function Sidebar({
 }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [expandedGroups, setExpandedGroups] = useState<string[]>(() => {
-    const group = MENU_GROUPS.find((g) => g.items.some((key) => key === location.hash.slice(2).split("?")[0]));
+    const group = MENU_GROUPS.find((g) =>
+      g.items.some((key) => key === location.hash.slice(2).split("?")[0]),
+    );
     return group ? [group.key] : ["organization"];
   });
   useEffect(() => {
-    const group = MENU_GROUPS.find((g) => g.items.some((key) => key === activeTab));
-    if (group) setExpandedGroups((prev) => prev.includes(group.key) ? prev : [...prev, group.key]);
+    const group = MENU_GROUPS.find((g) =>
+      g.items.some((key) => key === activeTab),
+    );
+    if (group)
+      setExpandedGroups((prev) =>
+        prev.includes(group.key) ? prev : [...prev, group.key],
+      );
   }, [activeTab]);
   const search = searchTerm.toLocaleLowerCase("uz").trim();
-  const matches = (item: (typeof NAV_ITEMS)[number]) => item.label.toLocaleLowerCase("uz").includes(search);
-  const navigateTo = (key: string) => { setActiveTab(key); onMobileClose(); };
+  const matches = (item: (typeof NAV_ITEMS)[number]) =>
+    item.label.toLocaleLowerCase("uz").includes(search);
+  const navigateTo = (key: string) => {
+    setActiveTab(key);
+    onMobileClose();
+  };
   const quickKeys = ["dashboard", "initial-setup", "menu", "catalog", "wizard"];
-  const quickItems = NAV_ITEMS.filter((item) => quickKeys.includes(item.key) && (!search || matches(item)));
+  const quickItems = NAV_ITEMS.filter(
+    (item) => quickKeys.includes(item.key) && (!search || matches(item)),
+  );
   const toggleGroup = (key: string) => {
     if (collapsed) {
       onToggleCollapse();
-      setExpandedGroups((prev) => prev.includes(key) ? prev : [...prev, key]);
+      setExpandedGroups((prev) => (prev.includes(key) ? prev : [...prev, key]));
       return;
     }
-    setExpandedGroups((prev) => prev.includes(key) ? prev.filter((x) => x !== key) : [...prev, key]);
+    setExpandedGroups((prev) =>
+      prev.includes(key) ? prev.filter((x) => x !== key) : [...prev, key],
+    );
   };
   const navButton = (item: (typeof NAV_ITEMS)[number], isChild = false) => {
     const Icon = item.icon;
-    const alert = item.key === "risks" ? dashboard?.high_risks_count : item.key === "bia" ? dashboard?.rpo_gap_count : 0;
+    const alert =
+      item.key === "risks"
+        ? dashboard?.high_risks_count
+        : item.key === "bia"
+          ? dashboard?.rpo_gap_count
+          : 0;
     return (
       <button
         key={item.key}
@@ -257,39 +353,87 @@ function Sidebar({
       aria-label="Asosiy navigatsiya"
     >
       <div className="spark-sidebar-brand">
-        <UzHiLogo className="uzhi-logo-sidebar" onActivate={collapsed && !mobileOpen ? onToggleCollapse : undefined} />
-        <button type="button" className="spark-sidebar-collapse" aria-label={collapsed ? "Menyuni kengaytirish" : "Menyuni yig‘ish"} title={collapsed ? "Menyuni kengaytirish" : "Menyuni yig‘ish"} onClick={onToggleCollapse}>
-          {collapsed ? <PanelLeftOpen size={17}/> : <PanelLeftClose size={17}/>}
+        <UzHiLogo
+          className="uzhi-logo-sidebar"
+          onActivate={collapsed && !mobileOpen ? onToggleCollapse : undefined}
+        />
+        <button
+          type="button"
+          className="spark-sidebar-collapse"
+          aria-label={collapsed ? "Menyuni kengaytirish" : "Menyuni yig‘ish"}
+          title={collapsed ? "Menyuni kengaytirish" : "Menyuni yig‘ish"}
+          onClick={onToggleCollapse}
+        >
+          {collapsed ? (
+            <PanelLeftOpen size={17} />
+          ) : (
+            <PanelLeftClose size={17} />
+          )}
         </button>
       </div>
       <div className="spark-nav-search">
-        <Search size={16} aria-hidden="true"/>
-        <input aria-label="Menyudan modul qidirish" placeholder="Modulni qidirish…" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}/>
+        <Search size={16} aria-hidden="true" />
+        <input
+          aria-label="Menyudan modul qidirish"
+          placeholder="Modulni qidirish…"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
       </div>
       <nav className="spark-nav-sections">
         <div className="nav-section-label">Ish maydoni</div>
         {quickItems.map((item) => navButton(item))}
         {MENU_GROUPS.map((group) => {
-          const matching = NAV_ITEMS.filter((item) => group.items.some((key) => key === item.key) && (!search || matches(item)));
+          const matching = NAV_ITEMS.filter(
+            (item) =>
+              group.items.some((key) => key === item.key) &&
+              (!search || matches(item)),
+          );
           if (!matching.length) return null;
           const Icon = group.icon;
-          const isExpanded = expandedGroups.includes(group.key) || Boolean(search);
+          const isExpanded =
+            expandedGroups.includes(group.key) || Boolean(search);
           return (
             <div key={group.key} className="spark-nav-group">
-              <button type="button" className={`spark-group-toggle${matching.some((i) => i.key === activeTab) ? " group-active" : ""}`} aria-expanded={isExpanded} title={collapsed ? group.label : undefined} onClick={() => toggleGroup(group.key)}>
+              <button
+                type="button"
+                className={`spark-group-toggle${matching.some((i) => i.key === activeTab) ? " group-active" : ""}`}
+                aria-expanded={isExpanded}
+                title={collapsed ? group.label : undefined}
+                onClick={() => toggleGroup(group.key)}
+              >
                 <Icon size={18} aria-hidden="true" />
                 <span className="spark-nav-label">{group.label}</span>
-                <ChevronDown className={`spark-group-chevron${isExpanded ? " is-expanded" : ""}`} size={15} aria-hidden="true"/>
+                <ChevronDown
+                  className={`spark-group-chevron${isExpanded ? " is-expanded" : ""}`}
+                  size={15}
+                  aria-hidden="true"
+                />
               </button>
-              {isExpanded && !collapsed && <div className="spark-nested-list">{matching.map((item) => navButton(item,true))}</div>}
+              {isExpanded && !collapsed && (
+                <div className="spark-nested-list">
+                  {matching.map((item) => navButton(item, true))}
+                </div>
+              )}
             </div>
           );
         })}
-        {search && !quickItems.length && !MENU_GROUPS.some((group) => NAV_ITEMS.some((item) => group.items.some((key) => key === item.key) && matches(item))) &&
-          <p className="spark-search-empty">Modul topilmadi</p>}
+        {search &&
+          !quickItems.length &&
+          !MENU_GROUPS.some((group) =>
+            NAV_ITEMS.some(
+              (item) =>
+                group.items.some((key) => key === item.key) && matches(item),
+            ),
+          ) && <p className="spark-search-empty">Modul topilmadi</p>}
       </nav>
       <div className="spark-sidebar-bottom">
-        <Shield size={16}/><span>ISO 22301 metodologiyasi<br/><small>Sertifikat da’vosi emas</small></span>
+        <Shield size={16} />
+        <span>
+          ISO 22301 metodologiyasi
+          <br />
+          <small>Sertifikat da’vosi emas</small>
+        </span>
       </div>
     </motion.aside>
   );
@@ -317,9 +461,19 @@ function Header({
 }) {
   return (
     <header className="app-header">
-      <button type="button" className="spark-menu-trigger" onClick={onMenuToggle} aria-label="Navigatsiya menyusini ochish yoki yopish"><Menu size={20}/></button>
+      <button
+        type="button"
+        className="spark-menu-trigger"
+        onClick={onMenuToggle}
+        aria-label="Navigatsiya menyusini ochish yoki yopish"
+      >
+        <Menu size={20} />
+      </button>
       {/* Organization badge */}
-      <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1 }}>
+      <div
+        className="header-organization"
+        style={{ display: "flex", alignItems: "center", gap: 10, flex: 1 }}
+      >
         <div
           className="brand-logo"
           style={{ width: 32, height: 32, flexShrink: 0, display: "none" }}
@@ -330,6 +484,7 @@ function Header({
         {/* Org Badge */}
         {currentUser?.organization_detail && (
           <div
+            className="organization-badge"
             style={{
               display: "flex",
               alignItems: "center",
@@ -363,7 +518,10 @@ function Header({
       </div>
 
       {/* Right controls */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <div
+        className="header-controls"
+        style={{ display: "flex", alignItems: "center", gap: 8 }}
+      >
         <span className="session-user">
           {currentUser?.first_name || currentUser?.username}
         </span>
@@ -426,259 +584,6 @@ function Header({
 /* ────────────────────────────────────────────────
    DASHBOARD TAB
 ──────────────────────────────────────────────── */
-function AnimatedShield({
-  size = 24,
-  color = "#087f86",
-  animate = true,
-}: {
-  size?: number;
-  color?: string;
-  animate?: boolean;
-}) {
-  const shieldPath = "M12 2L2 7l10 5 10-5-10-5z";
-  const innerPath = "M12 7l-2 2 2 2 2-2-2-2z";
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.8, rotate: -10 }}
-      animate={
-        animate
-          ? { opacity: 1, scale: 1, rotate: 0 }
-          : { opacity: 1, scale: 1, rotate: 0 }
-      }
-      transition={{ duration: 0.6, ease: "circOut" }}
-      className="brand-logo"
-      style={{
-        width: size,
-        height: size,
-        background: color,
-        boxShadow: `0 4px 14px rgba(255, 79, 36, ${animate ? 0.35 : 0})`,
-      }}
-    >
-      <svg
-        width={size * 0.5}
-        height={size * 0.5}
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="white"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        style={{ display: "block" }}
-      >
-        <path d={shieldPath} />
-        <path d={innerPath} />
-      </svg>
-    </motion.div>
-  );
-}
-
-/* ────────────────────────────────────────────────
-   LOGIN FORM (shown when not authenticated)
-────────────────────────────────────────────────── */
-function LoginForm({
-  onLogin,
-  initialUsername,
-  notice,
-}: {
-  onLogin: (user: any) => void;
-  initialUsername: string;
-  notice: string;
-}) {
-  const [username, setUsername] = useState(initialUsername);
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [loggingIn, setLoggingIn] = useState(false);
-  const [error, setError] = useState("");
-  const [loginSuccess, setLoginSuccess] = useState(false);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (loggingIn || !username.trim() || !password) return;
-    setLoggingIn(true);
-    setError("");
-    try {
-      const res = await api.login({ username: username.trim(), password });
-      setLoginSuccess(true);
-      onLogin(res.user);
-    } catch (err: any) {
-      setError(
-        err.message ||
-          "Login xatolik yuz berdi. Foydalanuvchi nomi yoki parol noto'g'ri.",
-      );
-    } finally {
-      setLoggingIn(false);
-    }
-  };
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -20 }}
-      transition={{ duration: 0.4, ease: "circOut" }}
-      className="app-shell"
-      style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        minHeight: "100vh",
-      }}
-    >
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.5, delay: 0.1, ease: "circOut" }}
-        className="modal-panel"
-        style={{ width: "100%", maxWidth: 400, padding: 24 }}
-      >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            marginBottom: 20,
-          }}
-        >
-          <AnimatedShield size={28} color="#087f86" animate={loginSuccess} />
-          <div
-            style={{
-              fontWeight: 800,
-              fontSize: 18,
-              color: "var(--color-text-primary)",
-            }}
-          >
-            RiskGuard
-          </div>
-        </div>
-        <div
-          style={{
-            fontSize: 13,
-            color: "var(--color-text-secondary)",
-            marginBottom: 24,
-          }}
-        >
-          Tizimga kirish uchun foydalanuvchi nomi va parolni kiriting
-        </div>
-        {notice && (
-          <p
-            role="status"
-            style={{ fontSize: 13, color: "var(--color-text-secondary)" }}
-          >
-            {notice}
-          </p>
-        )}
-        <form
-          onSubmit={handleSubmit}
-          style={{ display: "flex", flexDirection: "column", gap: 16 }}
-        >
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.2 }}
-          >
-            <div className="form-group">
-              <label className="form-label" htmlFor="login-username">
-                Foydalanuvchi nomi
-              </label>
-              <input
-                id="login-username"
-                name="username"
-                type="text"
-                autoComplete="username"
-                autoCapitalize="none"
-                spellCheck={false}
-                required
-                disabled={loggingIn}
-                className="input-field"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                autoFocus
-              />
-            </div>
-          </motion.div>
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.3 }}
-            className="form-group"
-          >
-            <label className="form-label" htmlFor="login-password">
-              Parol
-            </label>
-            <div className="input-wrapper">
-              <input
-                id="login-password"
-                name="password"
-                autoComplete="current-password"
-                required
-                disabled={loggingIn}
-                type={showPassword ? "text" : "password"}
-                className="input-field"
-                style={{ paddingRight: 44 }}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                aria-label={
-                  showPassword ? "Parolni yashirish" : "Parolni ko'rsatish"
-                }
-                className="password-toggle"
-              >
-                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-              </button>
-            </div>
-          </motion.div>
-          {error && (
-            <motion.div
-              role="alert"
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.2 }}
-              style={{
-                color: "var(--color-critical-text)",
-                fontSize: 12,
-                marginBottom: 8,
-                textAlign: "center",
-              }}
-            >
-              {error}
-            </motion.div>
-          )}
-          <motion.button
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.4 }}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            className="btn btn-primary"
-            type="submit"
-            disabled={loggingIn || !username.trim() || !password}
-          >
-            {loggingIn ? "Kirish..." : "Tizimga kirish"}
-          </motion.button>
-          <div
-            style={{
-              fontSize: 11,
-              color: "var(--color-text-muted)",
-              marginTop: 12,
-              textAlign: "center",
-            }}
-          >
-            Tashkilot administratori bergan hisobdan foydalaning.
-          </div>
-        </form>
-      </motion.div>
-    </motion.div>
-  );
-}
-
-/* ────────────────────────────────────────────────
-   PAGE HEADER
-────────────────────────────────────────────────── */
 const PAGE_META = Object.fromEntries(
   NAV_ITEMS.map((item) => [
     item.key,
@@ -703,8 +608,10 @@ export function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const pageTrail = useRef<string[]>([]);
+  const returnTo = useRef(safeHash(location.hash));
   const toggleSidebar = useCallback(() => {
-    if (window.matchMedia("(max-width: 768px)").matches) setMobileNavOpen((open) => !open);
+    if (window.matchMedia("(max-width: 768px)").matches)
+      setMobileNavOpen((open) => !open);
     else setSidebarCollapsed((closed) => !closed);
   }, []);
   const [loading, setLoading] = useState(false);
@@ -718,7 +625,11 @@ export function App() {
   // Login state
   const [loginLoading, setLoginLoading] = useState(true);
   const [loginUsername, setLoginUsername] = useState("");
-  const [loginNotice, setLoginNotice] = useState("");
+  const [loginNotice, setLoginNotice] = useState(() =>
+    new URLSearchParams(location.search).get("auth_error") === "sso_failed"
+      ? "Korporativ kirish bajarilmadi. Qayta urinib ko‘ring yoki tashkilot administratoriga murojaat qiling."
+      : "",
+  );
 
   const clearUserData = useCallback(() => {
     // Ignore pending responses belonging to the previous session.
@@ -734,6 +645,9 @@ export function App() {
   const handleLogin = useCallback(
     (user: any) => {
       clearUserData();
+      const destination = returnTo.current;
+      location.hash = destination;
+      setActiveTab(destination.slice(2));
       setCurrentUser(user);
       setLoginNotice("");
       setLoginLoading(false);
@@ -743,6 +657,7 @@ export function App() {
 
   useEffect(() => {
     const expired = () => {
+      returnTo.current = safeHash(location.hash);
       clearUserData();
       setCurrentUser(null);
       setLoginNotice("Sessiya tugagan. Iltimos, qayta kiring.");
@@ -839,6 +754,7 @@ export function App() {
   /* Actions */
   const handleSwitchUser = async (username = "") => {
     setLoading(true);
+    returnTo.current = "#/dashboard";
     try {
       try {
         await api.logout();
@@ -930,12 +846,17 @@ export function App() {
         onLogin={handleLogin}
         initialUsername={loginUsername}
         notice={loginNotice}
+        theme={theme}
+        toggleTheme={toggleTheme}
+        returnTo={returnTo.current}
       />
     );
   }
 
   return (
-    <div className={`app-shell${sidebarCollapsed ? " sidebar-collapsed" : ""}${mobileNavOpen ? " mobile-nav-open" : ""}`}>
+    <div
+      className={`app-shell${sidebarCollapsed ? " sidebar-collapsed" : ""}${mobileNavOpen ? " mobile-nav-open" : ""}`}
+    >
       <a className="skip-link" href="#main-content">
         Asosiy mazmunga o‘tish
       </a>
@@ -957,7 +878,14 @@ export function App() {
       />
 
       {/* Sidebar */}
-      {mobileNavOpen && <button type="button" className="spark-mobile-backdrop" aria-label="Menyuni yopish" onClick={() => setMobileNavOpen(false)}/>}
+      {mobileNavOpen && (
+        <button
+          type="button"
+          className="spark-mobile-backdrop"
+          aria-label="Menyuni yopish"
+          onClick={() => setMobileNavOpen(false)}
+        />
+      )}
       <Sidebar
         activeTab={activeTab}
         setActiveTab={navigate}
@@ -990,19 +918,39 @@ export function App() {
 
           {/* Context navigation */}
           <div className="spark-breadcrumb-row">
-            <button type="button" className="spark-back-button" onClick={goBack} disabled={activeTab === "dashboard"} aria-label="Oldingi sahifaga qaytish">
-              <ArrowLeft size={17}/> Orqaga
+            <button
+              type="button"
+              className="spark-back-button"
+              onClick={goBack}
+              disabled={activeTab === "dashboard"}
+              aria-label="Oldingi sahifaga qaytish"
+            >
+              <ArrowLeft size={17} /> Orqaga
             </button>
             <nav aria-label="Sahifa yo‘li" className="spark-breadcrumb">
-              <button type="button" onClick={() => navigate("dashboard")}>Boshqaruv paneli</button>
-              {activeTab !== "dashboard" && <>
-                <ChevronRight size={14} aria-hidden="true" />
-                {MENU_GROUPS.some((group) => group.items.some((item) => item === activeTab)) && <>
-                  <button type="button" onClick={() => navigate("menu")}>{MENU_GROUPS.find((group) => group.items.some((item) => item === activeTab))?.label}</button>
+              <button type="button" onClick={() => navigate("dashboard")}>
+                Boshqaruv paneli
+              </button>
+              {activeTab !== "dashboard" && (
+                <>
                   <ChevronRight size={14} aria-hidden="true" />
-                </>}
-                <span aria-current="page">{meta.title}</span>
-              </>}
+                  {MENU_GROUPS.some((group) =>
+                    group.items.some((item) => item === activeTab),
+                  ) && (
+                    <>
+                      <button type="button" onClick={() => navigate("menu")}>
+                        {
+                          MENU_GROUPS.find((group) =>
+                            group.items.some((item) => item === activeTab),
+                          )?.label
+                        }
+                      </button>
+                      <ChevronRight size={14} aria-hidden="true" />
+                    </>
+                  )}
+                  <span aria-current="page">{meta.title}</span>
+                </>
+              )}
             </nav>
           </div>
 
@@ -1053,19 +1001,39 @@ export function App() {
                 <Dashboard onNavigate={navigate} revision={workspaceRevision} />
               )}
               {activeTab === "initial-setup" && (
-                <InitialSetupWizard onNavigate={navigate} revision={workspaceRevision} />
+                <InitialSetupWizard
+                  onNavigate={navigate}
+                  revision={workspaceRevision}
+                />
               )}
               {activeTab === "menu" && <ModuleMenu onNavigate={navigate} />}
-              {activeTab === "catalog" && <ModuleCatalog onNavigate={navigate} />}
+              {activeTab === "catalog" && (
+                <ModuleCatalog onNavigate={navigate} />
+              )}
               {activeTab === "wizard" && (
                 <Wizard onNavigate={navigate} revision={workspaceRevision} />
               )}
               {activeTab === "dependencies" && <GraphPanel />}
               {activeTab === "imports" && <ImportWizard user={currentUser} />}
-              {activeTab === "bia-questionnaire" && <BIAQuestionnaire user={currentUser} />}
+              {activeTab === "management" && (
+                <Management
+                  user={currentUser}
+                  onNavigate={navigate}
+                  onChanged={changed}
+                />
+              )}
+              {activeTab === "incidents" && (
+                <IncidentWorkspace user={currentUser} onChanged={changed} />
+              )}
+              {activeTab === "integrations" && (
+                <Integrations user={currentUser} onNavigate={navigate} />
+              )}
+              {activeTab === "bia-questionnaire" && (
+                <BIAQuestionnaire user={currentUser} />
+              )}
               {activeTab === "risks" && <RiskMatrix onNavigate={navigate} />}
               {activeTab === "bia" && <BIARanking />}
-              {CONFIGS[activeTab] && (
+              {CONFIGS[activeTab] && activeTab !== "incidents" && (
                 <ResourcePanel
                   key={
                     workspaceRevision + activeTab + location.hash.split("?")[1]

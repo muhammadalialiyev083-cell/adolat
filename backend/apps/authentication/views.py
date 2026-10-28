@@ -45,6 +45,8 @@ class LoginView(views.APIView):
             )
             raise serializers.ValidationError(serializer.errors)
         user = serializer.validated_data["user"]
+        request.session.pop("enterprise_identity_id", None)
+        request.session.pop("enterprise_provider_version", None)
         login(request, user)
 
         # Audit yozish

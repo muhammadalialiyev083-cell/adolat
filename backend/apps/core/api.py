@@ -34,6 +34,8 @@ class TenantSerializer(serializers.ModelSerializer):
         request = self.context.get("request")
         if request:
             for field in fields.values():
+                if isinstance(field, serializers.ManyRelatedField):
+                    field = field.child_relation
                 if (
                     isinstance(field, serializers.PrimaryKeyRelatedField)
                     and field.queryset is not None
@@ -409,7 +411,7 @@ class TenantViewSet(viewsets.ModelViewSet):
 
     @transaction.atomic
     def destroy(self, request, *args, **kwargs):
-        obj = self.get_object()
+        obj = self.get_queryset().select_for_update().get(pk=self.get_object().pk)
         if request.user.role == "PROCESS_OWNER":
             proc = (
                 obj

@@ -13,6 +13,17 @@ Django **5.2.18**, DRF **3.18.3**, Python **3.12**; React **18**, TypeScript/Vit
 Lokal SQLite va alohida PostgreSQLda tekshirilgan. `backend_fastapi/` tarixiy,
 faol mahsulotning ishga tushirish yo‘liga kirmaydi.
 
+## Enterprise Pilot v1.1 nomzodi
+
+Xavfsiz CSV/XLSX import, dalilli BIA ustasi, rahbariyat/vazifalar, hodisalar,
+imzolangan monitoring adapteri, OIDC va yangi UzHi login qo‘shildi. Production
+deploy yoki real tashkilot piloti bajarilmadi. Holat va tashqi tekshiruvlar:
+[Enterprise release](docs/ENTERPRISE_V1_1_RELEASE.md), [API/UI](docs/ENTERPRISE_API.md),
+[operator yo‘riqnomasi](docs/ENTERPRISE_OPERATIONS.md), [pilot hujjatlari](docs/pilot/PILOT_CHARTER.md).
+
+Reproduktiv o‘rnatish: `pip install -r backend/requirements-dev.lock`; production
+uchun `backend/requirements.lock`. Dev auditida pypdf 6.21.2ga yangilandi.
+
 ## Lokal o‘rnatish
 
 ```bash

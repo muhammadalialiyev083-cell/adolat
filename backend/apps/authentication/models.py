@@ -78,3 +78,72 @@ class User(AbstractUser):
     @property
     def is_auditor(self):
         return self.role == self.ROLE_AUDITOR
+
+
+class IdentityProvider(models.Model):
+    """Operator-reviewed provider configuration. Secret values live only in env."""
+
+    organization = models.ForeignKey("organizations.Organization", on_delete=models.CASCADE)
+    slug = models.SlugField(max_length=80, unique=True)
+    name = models.CharField(max_length=150)
+    issuer = models.URLField(max_length=500)
+    client_id = models.CharField(max_length=200)
+    client_secret_env = models.CharField(max_length=100)
+    redirect_uri = models.URLField(max_length=500)
+    enabled = models.BooleanField(default=False)
+    required_groups = models.JSONField(default=list, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def clean(self):
+        import re
+        from urllib.parse import urlsplit
+        from django.core.exceptions import ValidationError
+
+        for value in [self.issuer, self.redirect_uri]:
+            parsed = urlsplit(value)
+            if (
+                parsed.scheme != "https"
+                or not parsed.hostname
+                or parsed.username
+                or parsed.password
+                or parsed.fragment
+                or parsed.query
+            ):
+                raise ValidationError("OIDC endpoints require exact HTTPS URLs.")
+        if not re.fullmatch(r"[A-Z_][A-Z0-9_]{0,99}", self.client_secret_env):
+            raise ValidationError("Invalid deployment secret variable name.")
+        if not isinstance(self.required_groups, list) or any(
+            not isinstance(g, str) or not g or len(g) > 200 for g in self.required_groups
+        ):
+            raise ValidationError("Required groups must be a list of nonempty strings.")
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+
+class ExternalIdentity(models.Model):
+    provider = models.ForeignKey(IdentityProvider, on_delete=models.CASCADE)
+    subject = models.CharField(max_length=255)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    enabled = models.BooleanField(default=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["provider", "subject"], name="unique_oidc_subject"),
+            models.UniqueConstraint(fields=["provider", "user"], name="unique_oidc_user"),
+        ]
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+
+        if (
+            self.provider_id
+            and self.user_id
+            and self.provider.organization_id != self.user.organization_id
+        ):
+            raise ValidationError("Identity must belong to the provider organization.")
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)

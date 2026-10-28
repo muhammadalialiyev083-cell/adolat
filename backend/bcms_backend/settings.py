@@ -84,6 +84,9 @@ INSTALLED_APPS = [
     "apps.simulation",
     "apps.reports",
     "apps.imports",
+    "apps.management",
+    "apps.incidents",
+    "apps.monitoring",
 ]
 
 # ==============================
@@ -99,6 +102,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "apps.authentication.oidc.EnterpriseSessionMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -235,17 +239,39 @@ if not DEBUG:
     from django.core.exceptions import ImproperlyConfigured
     from urllib.parse import urlsplit
 
-    if len(SECRET_KEY) < 50 or not os.environ.get("ALLOWED_HOSTS") or any(
-        "*" in host or "://" in host for host in ALLOWED_HOSTS
+    if (
+        len(SECRET_KEY) < 50
+        or not os.environ.get("ALLOWED_HOSTS")
+        or not ALLOWED_HOSTS
+        or any("*" in host or "://" in host or host.startswith(".") for host in ALLOWED_HOSTS)
     ):
         raise ImproperlyConfigured("Production requires a strong key and explicit exact hosts.")
     for origin in CSRF_TRUSTED_ORIGINS + CORS_ALLOWED_ORIGINS:
         parsed = urlsplit(origin)
         if (
-            parsed.scheme != "https" or not parsed.hostname or "*" in origin
-            or parsed.username or parsed.password or parsed.query or parsed.fragment
+            parsed.scheme != "https"
+            or not parsed.hostname
+            or "*" in origin
+            or parsed.username
+            or parsed.password
+            or parsed.query
+            or parsed.fragment
             or parsed.path not in {"", "/"}
         ):
             raise ImproperlyConfigured("Production origins must be exact HTTPS origins.")
     if SESSION_COOKIE_SAMESITE not in {"Lax", "Strict", "None"}:
         raise ImproperlyConfigured("Invalid COOKIE_SAMESITE.")
+
+if not DEBUG:
+    LOGGING = {
+        "version": 1,
+        "disable_existing_loggers": False,
+        "formatters": {"safe_json": {"()": "apps.core.logging.SecurityJSONFormatter"}},
+        "handlers": {"safe_console": {"class": "logging.StreamHandler", "formatter": "safe_json"}},
+        "root": {"handlers": ["safe_console"], "level": "INFO"},
+        "loggers": {
+            "django": {"handlers": ["safe_console"], "level": "INFO", "propagate": False},
+            "requests": {"handlers": ["safe_console"], "level": "WARNING", "propagate": False},
+            "authlib": {"handlers": ["safe_console"], "level": "WARNING", "propagate": False},
+        },
+    }

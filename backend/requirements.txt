@@ -11,3 +11,5 @@ networkx==3.7
 python-dotenv==1.2.4
 openpyxl==3.1.5
 defusedxml==0.7.1
+Authlib==1.9.1
+requests==2.34.0

@@ -90,3 +90,17 @@ C=create, R=list/detail, U=update, D=delete; barcha R tenant a’zolariga. UI yo
 | Health | Liveness/readiness | `GET /healthz; /readyz` | Anonim; maxfiy tafsilotsiz | DB/migrations | Lokal HTTP smoke; production sozlama check | Tekshirilgan; tashqi deploy bundan mustasno |
 
 Izoh: matritsa umumiy komponent testlarini ham ko‘rsatadi; har bir sahifaning har bir kombinatsiyasi alohida browser E2E bilan qamrab olingan degan da’vo yo‘q. Tashqi hisoblar, bibliografiya va production yuk tekshiruvlari LIMITATIONS.mdga ajratilgan.
+
+## Enterprise v1.1 qo‘shimchalari (2026-10-28)
+
+| UI | Backend | Yozish ruxsati | Regressiya |
+|---|---|---|---|
+| /#/imports | imports upload/preview/commit/templates | ADMIN/BCMS_MANAGER | test_enterprise_imports; enterprise_browser |
+| /#/bia-questionnaire | mavjud bia + submit/review/summary | owner/manager; approval ADMIN/APPROVER | test_enterprise_bia; enterprise_browser |
+| /#/management | tasks + management report | manager; assignee progress | test_enterprise_operations; enterprise_browser |
+| /#/incidents | incidents + evidence | manager yoki incident owner | test_enterprise_operations; enterprise_browser |
+| /#/integrations | monitoring status/alerts/deliveries | signed relay; manager ack/convert | test_enterprise_operations; enterprise_browser |
+| Enterprise login | mavjud auth + OIDC provider/subject | mapped active tenant user | test_enterprise_auth/oidc; enterprise_browser |
+
+Yangi yozuvlar tenant FK va M2M, domain approval, audit, atomar commit va version
+qoidalariga bo‘ysunadi. Live enterprise xizmatlar tekshiruvi alohida kutilmoqda.
