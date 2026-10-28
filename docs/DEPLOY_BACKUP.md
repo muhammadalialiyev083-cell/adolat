@@ -49,9 +49,9 @@ bo‘lmasa `/` JSON holatini beradi; health uchun `/healthz`dan foydalaning.
 
 `/healthz` — process tirikligi (200). `/readyz` — DB SELECT1 va pending migrations
 yo‘qligi (200/503). Istisno tafsiloti va DB ulanish qiymati tashqariga chiqarilmaydi.
-API javoblari private/no-store; PDF/DOCX xotirada generatsiya qilinadi. Foydalanuvchi
-uploadi mavjud emas; keyin qo‘shilsa obyekt ombori yoki tasdiqlangan persistent
-saqlash kerak. SQLite production ephemeral disk uchun qo‘llanmaydi.
+API javoblari private/no-store; PDF/DOCX xotirada generatsiya qilinadi. Import fayllari vaqtinchalik passiv parserda tekshiriladi; doimiy
+media sifatida saqlanmaydi. Preview TTL/cleanup va tashqi dalil ombori talablari
+ENTERPRISE_OPERATIONS.mdga yozilgan. SQLite production ephemeral disk uchun qo‘llanmaydi.
 
 ## PostgreSQL backup va tiklash
 
@@ -81,3 +81,5 @@ serverda bajarildi; natija test hisobotida.
 Tashqi deployni yakunlash uchun kerak bo‘ladigan ma’lumotlar: mavjud Render xizmat
 identifikatori/huquqi, Netlify sayt huquqi, haqiqiy PostgreSQL ulanishi, HTTPS domenlari
 va SECRET_KEY. Bu ishda ular olinmagan, pulli resurs yaratilmagan.
+
+Enterprise v1.1 deploy/rollback va OIDC/HMAC sozlamalari: ENTERPRISE_OPERATIONS.md.

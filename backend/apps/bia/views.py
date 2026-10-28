@@ -1,4 +1,5 @@
 from django.db import transaction
+from django.http import JsonResponse
 from django.utils import timezone
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
@@ -6,6 +7,7 @@ from rest_framework.response import Response
 
 from apps.authentication.permissions import IsApproverRole, IsTenantMember
 from apps.bia.serializers import BIAAssessmentSerializer
+from apps.bia.questionnaire import missing_evidence
 from apps.core.api import TenantViewSet
 from apps.core.audit import record_audit
 
@@ -24,7 +26,27 @@ class BIAAssessmentViewSet(TenantViewSet):
             raise ValidationError(
                 {"status": "Faqat qoralama yoki yuborilgan baholash tasdiqlanadi."}
             )
+        if bia.organization.separation_of_duties and (
+            not bia.created_by_id or request.user.pk in {bia.created_by_id, bia.process.owner_id}
+        ):
+            raise ValidationError(
+                {"approval": "Mustaqil tasdiqlovchi va ma’lum muallif talab qilinadi."}
+            )
+        if bia.evidence_required and missing_evidence(bia):
+            raise ValidationError({"evidence": missing_evidence(bia)})
+        if bia.evidence_required:
+            bia.evidence = [dict(item, review_status="REVIEWED") for item in bia.evidence]
         bia.status, bia.approved_by, bia.approved_at = "APPROVED", request.user, timezone.now()
+        snapshot = dict(self.get_serializer(bia).data)
+        snapshot.pop("approved_snapshot", None)
+        snapshot["process_context"] = {
+            "name": bia.process.name,
+            "department_id": bia.process.department_id,
+            "owner_id": bia.process.owner_id,
+            "service_id": bia.process.service_id,
+            "working_hours": bia.process.working_hours,
+        }
+        bia.approved_snapshot = snapshot
         bia.save()
         record_audit(
             request,
@@ -34,6 +56,27 @@ class BIAAssessmentViewSet(TenantViewSet):
             after_state=self.get_serializer(bia).data,
         )
         return Response({"message": "BIA tasdiqlandi.", "bia": self.get_serializer(bia).data})
+
+    @action(detail=True, methods=["post"])
+    @transaction.atomic
+    def submit(self, request, pk=None):
+        bia = self.get_queryset().select_for_update().get(pk=self.get_object().pk)
+        if bia.status not in {"DRAFT", "REJECTED"}:
+            raise ValidationError(
+                {"status": "Faqat qoralama yoki qaytarilgan baholashni yuboring."}
+            )
+        if bia.evidence_required and missing_evidence(bia):
+            raise ValidationError({"evidence": missing_evidence(bia)})
+        bia.status = "SUBMITTED"
+        bia.save()
+        record_audit(
+            request,
+            action="UPDATE",
+            entity="BIAAssessment",
+            entity_id=bia.pk,
+            after_state={"status": bia.status},
+        )
+        return Response(self.get_serializer(bia).data)
 
     @action(detail=True, methods=["post"])
     @transaction.atomic
@@ -51,3 +94,45 @@ class BIAAssessmentViewSet(TenantViewSet):
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
         return Response(serializer.data, status=201)
+
+    @action(detail=True, methods=["post"], permission_classes=[IsTenantMember, IsApproverRole])
+    @transaction.atomic
+    def review(self, request, pk=None):
+        bia = self.get_queryset().select_for_update().get(pk=self.get_object().pk)
+        decision = request.data.get("decision")
+        notes = request.data.get("notes", "")
+        if bia.status not in {"DRAFT", "SUBMITTED"} or decision not in {
+            "reject",
+            "request_changes",
+        }:
+            raise ValidationError(
+                {"decision": "Faol qoralama uchun reject yoki request_changes tanlang."}
+            )
+        if not isinstance(notes, str) or not notes.strip() or len(notes) > 4000:
+            raise ValidationError({"notes": "Ko‘rib chiqish sababini kiriting (4000 belgigacha)."})
+        bia.status = "REJECTED" if decision == "reject" else "DRAFT"
+        bia.review_notes = notes.strip()
+        bia.save()
+        record_audit(
+            request,
+            action="UPDATE",
+            entity="BIAAssessment",
+            entity_id=bia.pk,
+            after_state={"decision": decision, "notes": bia.review_notes, "status": bia.status},
+        )
+        return Response(self.get_serializer(bia).data)
+
+    @action(detail=True, methods=["get"])
+    def summary(self, request, pk=None):
+        bia = self.get_object()
+        data = (
+            bia.approved_snapshot
+            if bia.status == "APPROVED" and bia.approved_snapshot
+            else self.get_serializer(bia).data
+        )
+        record_audit(request, action="EXPORT", entity="BIAAssessment", entity_id=bia.pk)
+        response = JsonResponse(data, json_dumps_params={"ensure_ascii": False, "indent": 2})
+        response["Content-Disposition"] = (
+            f'attachment; filename="bia-{bia.pk}-v{bia.revision}.json"'
+        )
+        return response

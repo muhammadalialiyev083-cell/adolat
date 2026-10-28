@@ -79,6 +79,7 @@ class ContinuityPlan(BaseTenantModel):
         BusinessProcess, on_delete=models.CASCADE, related_name="continuity_plans"
     )
     title = models.CharField(max_length=255)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="created_plans")
     version = models.CharField(max_length=20, default="1.0")
     scope = models.TextField(blank=True)
     activation_conditions = models.TextField(blank=True)

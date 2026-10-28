@@ -1,18 +1,26 @@
-import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import test from 'node:test';
-import ts from 'typescript';
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import test from "node:test";
+import ts from "typescript";
 
-const source = readFileSync(new URL('../src/api/client.ts', import.meta.url), 'utf8');
+const source = readFileSync(
+  new URL("../src/api/client.ts", import.meta.url),
+  "utf8",
+);
 const compiled = ts.transpileModule(source, {
-  compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.ESNext },
+  compilerOptions: {
+    target: ts.ScriptTarget.ES2020,
+    module: ts.ModuleKind.ESNext,
+  },
 }).outputText;
 let clientId = 0;
-const user = { id: 1, username: 'test-admin', role: 'ADMIN' };
-const credentials = { username: user.username, password: '  TestPassword!  ' };
-const json = (data, status = 200) => new Response(JSON.stringify(data), {
-  status, headers: { 'Content-Type': 'application/json' },
-});
+const user = { id: 1, username: "test-admin", role: "ADMIN" };
+const credentials = { username: user.username, password: "  TestPassword!  " };
+const json = (data, status = 200) =>
+  new Response(JSON.stringify(data), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
 
 async function clientFor(t, handler) {
   const originalFetch = globalThis.fetch;
@@ -21,118 +29,211 @@ async function clientFor(t, handler) {
     calls.push({ url, ...options });
     return handler(url, options, calls);
   };
-  t.after(() => { globalThis.fetch = originalFetch; });
-  const client = await import(`data:text/javascript;base64,${Buffer.from(compiled).toString('base64')}#${clientId++}`);
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  const client = await import(
+    `data:text/javascript;base64,${Buffer.from(compiled).toString("base64")}#${clientId++}`
+  );
   return { ...client, calls };
 }
 
-test('login, logout and relogin use rotated tokens and preserve the password', async t => {
+test("login, logout and relogin use rotated tokens and preserve the password", async (t) => {
   const { api, calls } = await clientFor(t, (url, options) => {
-    if (url.endsWith('/csrf')) return json({ csrfToken: 'before-login' });
-    const token = options.headers.get('X-CSRFToken');
-    if (url.endsWith('/login')) {
-      assert.equal(token, calls.filter(call => call.url.endsWith('/login')).length === 1 ? 'before-login' : 'after-logout');
+    if (url.endsWith("/csrf")) return json({ csrfToken: "before-login" });
+    const token = options.headers.get("X-CSRFToken");
+    if (url.endsWith("/login")) {
+      assert.equal(
+        token,
+        calls.filter((call) => call.url.endsWith("/login")).length === 1
+          ? "before-login"
+          : "after-logout",
+      );
       assert.deepEqual(JSON.parse(options.body), credentials);
-      return json({ user, csrfToken: 'after-login' });
+      return json({ user, csrfToken: "after-login" });
     }
-    assert.ok(url.endsWith('/logout'));
-    assert.equal(token, 'after-login');
-    return json({ message: 'ok', csrfToken: 'after-logout' });
+    assert.ok(url.endsWith("/logout"));
+    assert.equal(token, "after-login");
+    return json({ message: "ok", csrfToken: "after-logout" });
   });
   assert.deepEqual((await api.login(credentials)).user, user);
   await api.logout();
   await api.login(credentials);
-  assert.equal(calls.filter(call => call.url.endsWith('/csrf')).length, 1);
-  assert.ok(calls.every(call => call.credentials === 'include' && call.cache === 'no-store'));
+  assert.equal(calls.filter((call) => call.url.endsWith("/csrf")).length, 1);
+  assert.ok(
+    calls.every(
+      (call) => call.credentials === "include" && call.cache === "no-store",
+    ),
+  );
 });
 
-test('older login responses invalidate the cached token before logout', async t => {
+test("older login responses invalidate the cached token before logout", async (t) => {
   let tokenRequests = 0;
   const { api } = await clientFor(t, (url, options) => {
-    if (url.endsWith('/csrf')) return json({ csrfToken: `token-${++tokenRequests}` });
-    if (url.endsWith('/login')) return json({ user });
-    assert.equal(options.headers.get('X-CSRFToken'), 'token-2');
-    return json({ message: 'ok' });
+    if (url.endsWith("/csrf"))
+      return json({ csrfToken: `token-${++tokenRequests}` });
+    if (url.endsWith("/login")) return json({ user });
+    assert.equal(options.headers.get("X-CSRFToken"), "token-2");
+    return json({ message: "ok" });
   });
   await api.login(credentials);
   await api.logout();
   assert.equal(tokenRequests, 2);
 });
 
-test('a stale CSRF rejection refreshes once and retries the same action', async t => {
+test("a stale CSRF rejection refreshes once and retries the same action", async (t) => {
   let tokenRequests = 0;
   let attempts = 0;
   const { api, calls } = await clientFor(t, (url, options) => {
-    if (url.endsWith('/csrf')) return json({ csrfToken: `token-${++tokenRequests}` });
+    if (url.endsWith("/csrf"))
+      return json({ csrfToken: `token-${++tokenRequests}` });
     attempts += 1;
-    if (attempts === 1) return json({ detail: 'CSRF Failed: token incorrect.' }, 403);
-    assert.equal(options.headers.get('X-CSRFToken'), 'token-2');
-    return json({ user, csrfToken: 'rotated' });
+    if (attempts === 1)
+      return json({ detail: "CSRF Failed: token incorrect." }, 403);
+    assert.equal(options.headers.get("X-CSRFToken"), "token-2");
+    return json({ user, csrfToken: "rotated" });
   });
   await api.login(credentials);
-  const actions = calls.filter(call => call.method === 'POST');
+  const actions = calls.filter((call) => call.method === "POST");
   assert.equal(actions.length, 2);
   assert.equal(actions[0].body, actions[1].body);
 });
 
-test('a repeated CSRF failure stops after one retry', async t => {
-  const { api, ApiError, calls } = await clientFor(t, url => url.endsWith('/csrf')
-    ? json({ csrfToken: 'token' })
-    : json({ detail: 'CSRF Failed: origin rejected.' }, 403));
-  await assert.rejects(api.login(credentials), error => error instanceof ApiError && error.status === 403);
-  assert.equal(calls.filter(call => call.method === 'POST').length, 2);
+test("a repeated CSRF failure stops after one retry", async (t) => {
+  const { api, ApiError, calls } = await clientFor(t, (url) =>
+    url.endsWith("/csrf")
+      ? json({ csrfToken: "token" })
+      : json({ detail: "CSRF Failed: origin rejected." }, 403),
+  );
+  await assert.rejects(
+    api.login(credentials),
+    (error) => error instanceof ApiError && error.status === 403,
+  );
+  assert.equal(calls.filter((call) => call.method === "POST").length, 2);
 });
 
-test('permission errors and invalid credentials are never retried', async t => {
-  const { api, calls } = await clientFor(t, url => {
-    if (url.endsWith('/csrf')) return json({ csrfToken: 'token' });
-    if (url.endsWith('/login')) return json({ non_field_errors: ['Foydalanuvchi nomi yoki parol noto‘g‘ri.'] }, 400);
-    return json({ detail: 'Permission denied.' }, 403);
+test("permission errors and invalid credentials are never retried", async (t) => {
+  const { api, calls } = await clientFor(t, (url) => {
+    if (url.endsWith("/csrf")) return json({ csrfToken: "token" });
+    if (url.endsWith("/login"))
+      return json(
+        { non_field_errors: ["Foydalanuvchi nomi yoki parol noto‘g‘ri."] },
+        400,
+      );
+    return json({ detail: "Permission denied." }, 403);
   });
   await assert.rejects(api.login(credentials), /Foydalanuvchi nomi yoki parol/);
   await assert.rejects(api.publishPlan(1), /Permission denied/);
   assert.equal(calls.length, 3);
 });
 
-test('concurrent actions share the CSRF bootstrap request', async t => {
+test("concurrent actions share the CSRF bootstrap request", async (t) => {
   const { api, calls } = await clientFor(t, async (url, options) => {
-    if (url.endsWith('/csrf')) return json({ csrfToken: 'shared-token' });
-    assert.equal(options.headers.get('X-CSRFToken'), 'shared-token');
+    if (url.endsWith("/csrf")) return json({ csrfToken: "shared-token" });
+    assert.equal(options.headers.get("X-CSRFToken"), "shared-token");
     return json({ ok: true });
   });
   await Promise.all([api.publishPlan(1), api.approveBIA(2)]);
-  assert.equal(calls.filter(call => call.url.endsWith('/csrf')).length, 1);
+  assert.equal(calls.filter((call) => call.url.endsWith("/csrf")).length, 1);
 });
 
-test('HTML from a static host cannot masquerade as a successful login', async t => {
-  const { api } = await clientFor(t, url => url.endsWith('/csrf')
-    ? json({ csrfToken: 'token' })
-    : new Response('<html>SPA fallback</html>', { headers: { 'Content-Type': 'text/html' } }));
+test("HTML from a static host cannot masquerade as a successful login", async (t) => {
+  const { api } = await clientFor(t, (url) =>
+    url.endsWith("/csrf")
+      ? json({ csrfToken: "token" })
+      : new Response("<html>SPA fallback</html>", {
+          headers: { "Content-Type": "text/html" },
+        }),
+  );
   await assert.rejects(api.login(credentials), /kutilmagan javob/);
 });
 
-test('a failed CSRF bootstrap can be retried without reloading the page', async t => {
+test("a failed CSRF bootstrap can be retried without reloading the page", async (t) => {
   let attempts = 0;
-  const { api, calls } = await clientFor(t, url => {
-    if (url.endsWith('/csrf')) return ++attempts === 1 ? json({}) : json({ csrfToken: 'token' });
+  const { api, calls } = await clientFor(t, (url) => {
+    if (url.endsWith("/csrf"))
+      return ++attempts === 1 ? json({}) : json({ csrfToken: "token" });
     return json({ user });
   });
   await assert.rejects(api.login(credentials), /xavfsizlik tokeni/);
   assert.deepEqual((await api.login(credentials)).user, user);
-  assert.equal(calls.filter(call => call.method === 'POST').length, 1);
+  assert.equal(calls.filter((call) => call.method === "POST").length, 1);
 });
 
-test('network and upstream errors provide readable messages', async t => {
+test("network and upstream errors provide readable messages", async (t) => {
   let attempts = 0;
   const { api } = await clientFor(t, () => {
-    if (++attempts === 1) throw new TypeError('Failed to fetch');
-    return new Response('<html>Bad gateway</html>', { status: 502 });
+    if (++attempts === 1) throw new TypeError("Failed to fetch");
+    return new Response("<html>Bad gateway</html>", { status: 502 });
   });
   await assert.rejects(api.getMe(), /Server bilan bog‘lanib bo‘lmadi/);
   await assert.rejects(api.getMe(), /Server vaqtincha ishlamayapti/);
 });
 
-test('profile loading retains authentication failures for session handling', async t => {
-  const { api, ApiError } = await clientFor(t, () => json({ detail: 'Authentication credentials were not provided.' }, 403));
-  await assert.rejects(api.getMe(), error => error instanceof ApiError && error.status === 403);
+test("profile loading retains authentication failures for session handling", async (t) => {
+  const { api, ApiError } = await clientFor(t, () =>
+    json({ detail: "Authentication credentials were not provided." }, 403),
+  );
+  await assert.rejects(
+    api.getMe(),
+    (error) => error instanceof ApiError && error.status === 403,
+  );
+});
+
+test("multipart import keeps browser boundary and sends CSRF", async (t) => {
+  const { api } = await clientFor(t, (url, options) => {
+    if (url.endsWith("/csrf")) return json({ csrfToken: "multipart-csrf" });
+    assert.ok(options.body instanceof FormData);
+    assert.equal(options.headers.has("Content-Type"), false);
+    assert.equal(options.headers.get("X-CSRFToken"), "multipart-csrf");
+    assert.equal(options.body.get("entity"), "departments");
+    return json({ id: "fixture" }, 201);
+  });
+  assert.equal(
+    (
+      await api.uploadImport(
+        "departments",
+        new File(["key,name\na,A"], "data.csv"),
+      )
+    ).id,
+    "fixture",
+  );
+});
+
+test("return routes reject external URLs and unknown hashes", async () => {
+  const src = readFileSync(
+    new URL("../src/api/navigation.ts", import.meta.url),
+    "utf8",
+  );
+  const js = ts.transpileModule(src, {
+    compilerOptions: { module: ts.ModuleKind.ESNext },
+  }).outputText;
+  const { safeHash } = await import(
+    `data:text/javascript;base64,${Buffer.from(js).toString("base64")}`
+  );
+  assert.equal(safeHash("#/plans"), "#/plans");
+  assert.equal(safeHash("#/incidents?owner=1"), "#/incidents");
+  for (const url of [
+    "https://evil.example",
+    "//evil.example",
+    "#//evil.example",
+    "#/../plans",
+    "#/unknown",
+    null,
+  ])
+    assert.equal(safeHash(url), "#/dashboard");
+});
+
+test("nested row validation remains readable", async (t) => {
+  const { api } = await clientFor(t, (url) =>
+    url.endsWith("/csrf")
+      ? json({ csrfToken: "fixture" })
+      : json({ evidence: [{ assessment_date: ["Sana noto‘g‘ri."] }] }, 400),
+  );
+  await assert.rejects(
+    api.create("bia", {}),
+    (error) =>
+      error.message.includes("Sana noto‘g‘ri.") &&
+      !error.message.includes("[object Object]"),
+  );
 });

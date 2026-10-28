@@ -67,3 +67,11 @@ nomlari audit payloadidan olib tashlanadi. API javoblari private/no-store.
 
 HTTP xatolar: 400 validatsiya, 403 login/ruxsat/CSRF, 404 tenant doirasida topilmagan,
 409 bog‘liqlik/takrorlash konflikti, 429 login chegarasi. Maydon xatolari DRF formatida saqlandi.
+
+## Enterprise v1.1
+
+Django monolitiga imports, management, incidents va monitoring domenlari qo‘shildi.
+Authentication OIDC provider/subject mapping va shared DB rate bucketni saqlaydi.
+Yangi M2M relationlar ham TenantSerializer bilan cheklanadi. BIA/reja tahrirlash,
+o‘chirish va tasdiqlash DB locklari bilan serializatsiya qilinadi. Tashkilotsiz
+superuser oddiy tenant resurslariga kira olmaydi. To‘liq shartnoma ENTERPRISE_API.mdda.

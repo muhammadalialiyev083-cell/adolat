@@ -18,7 +18,7 @@ class OrganizationSerializer(TenantSerializer):
             "created_at",
             "updated_at",
         ]
-        fields += ["is_demo", "contact_details", "recovery_budget"]
+        fields += ["is_demo", "contact_details", "recovery_budget", "separation_of_duties"]
         read_only_fields = ["id", "is_demo", "created_at", "updated_at"]
 
 

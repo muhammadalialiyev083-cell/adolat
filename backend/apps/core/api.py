@@ -34,6 +34,8 @@ class TenantSerializer(serializers.ModelSerializer):
         request = self.context.get("request")
         if request:
             for field in fields.values():
+                if isinstance(field, serializers.ManyRelatedField):
+                    field = field.child_relation
                 if (
                     isinstance(field, serializers.PrimaryKeyRelatedField)
                     and field.queryset is not None
@@ -371,11 +373,16 @@ class TenantViewSet(viewsets.ModelViewSet):
 
     @transaction.atomic
     def update(self, request, *args, **kwargs):
+        # Serialize edits with approval actions, then let DRF reload the locked
+        # record so a concurrent approval cannot be overwritten by a stale draft.
+        self.get_queryset().select_for_update().get(pk=self.get_object().pk)
         return super().update(request, *args, **kwargs)
 
     def perform_create(self, serializer):
         names = {f.name for f in serializer.Meta.model._meta.fields}
         extra = {"organization": self.request.user.organization} if "organization" in names else {}
+        if "created_by" in names:
+            extra["created_by"] = self.request.user
         if (
             serializer.Meta.model.__name__ == "BusinessProcess"
             and self.request.user.role == "PROCESS_OWNER"
@@ -404,7 +411,7 @@ class TenantViewSet(viewsets.ModelViewSet):
 
     @transaction.atomic
     def destroy(self, request, *args, **kwargs):
-        obj = self.get_object()
+        obj = self.get_queryset().select_for_update().get(pk=self.get_object().pk)
         if request.user.role == "PROCESS_OWNER":
             proc = (
                 obj

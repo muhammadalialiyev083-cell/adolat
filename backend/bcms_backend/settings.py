@@ -34,6 +34,7 @@ CSRF_COOKIE_HTTPONLY = True
 SESSION_COOKIE_AGE = 28800
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_REFERRER_POLICY = "same-origin"
 X_FRAME_OPTIONS = "DENY"
 
 ALLOWED_HOSTS = [
@@ -82,6 +83,10 @@ INSTALLED_APPS = [
     "apps.plans",
     "apps.simulation",
     "apps.reports",
+    "apps.imports",
+    "apps.management",
+    "apps.incidents",
+    "apps.monitoring",
 ]
 
 # ==============================
@@ -97,6 +102,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "apps.authentication.oidc.EnterpriseSessionMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -216,6 +222,9 @@ STATICFILES_DIRS = (
 )
 MEDIA_ROOT = Path(os.environ.get("MEDIA_ROOT", str(BASE_DIR / "media")))
 MEDIA_URL = "/media/"
+DATA_UPLOAD_MAX_MEMORY_SIZE = 3 * 1024 * 1024
+FILE_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024
+DATA_UPLOAD_MAX_NUMBER_FILES = 1
 
 WHITENOISE_ROOT = BASE_DIR.parent / "frontend" / "dist"
 
@@ -225,3 +234,44 @@ if not DEBUG and not os.environ.get("DATABASE_URL", "").startswith(
     from django.core.exceptions import ImproperlyConfigured
 
     raise ImproperlyConfigured("Production requires a PostgreSQL DATABASE_URL.")
+
+if not DEBUG:
+    from django.core.exceptions import ImproperlyConfigured
+    from urllib.parse import urlsplit
+
+    if (
+        len(SECRET_KEY) < 50
+        or not os.environ.get("ALLOWED_HOSTS")
+        or not ALLOWED_HOSTS
+        or any("*" in host or "://" in host or host.startswith(".") for host in ALLOWED_HOSTS)
+    ):
+        raise ImproperlyConfigured("Production requires a strong key and explicit exact hosts.")
+    for origin in CSRF_TRUSTED_ORIGINS + CORS_ALLOWED_ORIGINS:
+        parsed = urlsplit(origin)
+        if (
+            parsed.scheme != "https"
+            or not parsed.hostname
+            or "*" in origin
+            or parsed.username
+            or parsed.password
+            or parsed.query
+            or parsed.fragment
+            or parsed.path not in {"", "/"}
+        ):
+            raise ImproperlyConfigured("Production origins must be exact HTTPS origins.")
+    if SESSION_COOKIE_SAMESITE not in {"Lax", "Strict", "None"}:
+        raise ImproperlyConfigured("Invalid COOKIE_SAMESITE.")
+
+if not DEBUG:
+    LOGGING = {
+        "version": 1,
+        "disable_existing_loggers": False,
+        "formatters": {"safe_json": {"()": "apps.core.logging.SecurityJSONFormatter"}},
+        "handlers": {"safe_console": {"class": "logging.StreamHandler", "formatter": "safe_json"}},
+        "root": {"handlers": ["safe_console"], "level": "INFO"},
+        "loggers": {
+            "django": {"handlers": ["safe_console"], "level": "INFO", "propagate": False},
+            "requests": {"handlers": ["safe_console"], "level": "WARNING", "propagate": False},
+            "authlib": {"handlers": ["safe_console"], "level": "WARNING", "propagate": False},
+        },
+    }

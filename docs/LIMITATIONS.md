@@ -13,9 +13,8 @@
   quvvat bilan hisoblanadi; aniq malaka, smena, sayohat va geografiya cheklovlari
   resurslarni alohida kiritish orqali qo‘lda ifodalanadi. Simulyatsiyaning umumiy
   mutaxassis quvvati 1 deb ochiq ko‘rsatiladi; alohida jadvalda u sozlanadi.
-- Login throttling Django cache orqali bajariladi. Hozirgi LocMemCache har bir
-  worker uchun alohida; ko‘p workerli productionda umumiy cache yoki kirish
-  proksisida markaziy limit kerak. Bu cheklov sessiya/CSRF/RBACni o‘chirmaydi.
+- Login limiti endi umumiy DBda atomar. Fixed-window boundary burst va ishonchli
+  ingress REMOTE_ADDR sozlamasi zarur; production multiworker yuk testi kutilmoqda.
 - Audit va tasdiqlangan nusxalar foydalanuvchi API darajasida o‘zgarmas.
   To‘g‘ridan-to‘g‘ri DB administrator huquqidan himoyalangan WORM yoki kriptografik
   dalillar ombori emas. DB operator ruxsatlari va backup alohida boshqariladi.
@@ -28,9 +27,8 @@
 - Graf butun tenant ma’lumotlaridan olinadi; SVGda bir vaqtda 60 tugun. Qidiruv va
   tugunlar ro‘yxati mavjud. Minglab tugun uchun maxsus graph-layout/paging yuk
   testi bajarilmagan. Xuddi shunday, production yuk va penetratsion audit o‘tkazilmadi.
-- Email orqali parol tiklash va fayl import/upload kiritilmadi. Parolni o‘zi yoki
-  admin almashtiradi; email yuborildi degan yolg‘on xabar yo‘q. Shaxsiy upload
-  yo‘qligi sababli ephemeral diskda foydalanuvchi fayli saqlanmaydi.
+- Email password recovery yo‘q; mahalliy admin/operator recovery siyosati saqlangan.
+  CSV/XLSX import endi mavjud, fayl doimiy saqlanmaydi; preview TTL/cleanup talab etiladi.
 - Eski API soat/daqiqa maydonlari saqlangan; kanonik soniya maydonlari save/migratsiyada
   hosil bo‘ladi. Xom SQL/bulk update operatori ushbu muvofiqlikni o‘zi saqlashi kerak.
 - Qo‘lda tuzilgan reja jadvalga bog‘lanmasdan ham saqlanishi mumkin. Publish uchun
@@ -41,3 +39,10 @@
 Tarixiy `backend_fastapi/` asosiy tekshiruv to‘plamiga kirmaydi. Undagi bazaga ulanish va
 maxfiy kalitlarning oldindan yozilgan qiymatlari olib tashlandi, seeder explicit
 parol/debug talab qiladi; ushbu eski backend productionga tayyor deb taqdim etilmaydi.
+
+Enterprise cheklovlari: real IdP/monitoring ulanishi va tashkilot piloti bajarilmagan.
+Native LDAP, avtomatik provisioning, IdP global/back-channel logout va scheduled pull
+qo‘shilmadi. Import risk/BIAni qamramaydi. Asosiy RTO/MTPDsiz BIA draft saqlanmaydi;
+dalilni keyin to‘ldirish mumkin. Legacy BIA API compatibility yo‘li evidence_required=false
+bo‘lishi mumkin; bunday yozuv dalilli anketa deb qaralmasin. Ba’zi selector/history
+ro‘yxatlari 100 yozuv bilan cheklangan. To‘liq holat ENTERPRISE_V1_1_RELEASE.mdda.

@@ -60,3 +60,22 @@ API to‘liq yo‘li integratsion testda; barcha mumkin bo‘lgan brauzer amalla
 har brauzer/OS kombinatsiyasi to‘liq E2E qamrovida emas. Production trafik,
 ko‘p worker rate limiting, real tashqi deploy va penetration test bajarilmadi.
 Ilmiy manba va Renderning joriy platforma schema tekshiruvi tarmoq siyosati bilan bloklangan.
+
+## Enterprise Pilot v1.1 · 2026-10-28
+
+To‘liq `bash scripts/check.sh`: Ruff, Django check/migration drift, SQLite
+**144 passed, 1 skipped** (PG-only concurrency), frontend lint/typecheck,
+**13 client test**, build o‘tdi. PostgreSQL 17.11 UTF-8: **145 passed**, jumladan
+8 parallel worker/20 login urinishidan 10 ruxsat. Eski va yangi Chromium smoke
+sinovlari o‘tdi; enterprise JS xatolari 0. Production settings deploy-check o‘tdi;
+bu production deploy yoki real korporativ xizmat tasdig‘i emas.
+
+Original lokal SQLite faqat read-only backup orqali olingan nusxada migratsiya
+oldinga/orqaga/oldinga sinovidan o‘tdi; 24 tarix/domen jadvali soni, 3 user/4 process/
+1 plan saqlandi. Alohida PostgreSQL pg_dump/pg_restoreda approved BIA va plan
+snapshotlari aynan saqlandi. Synthetic fixturelar haqiqiy pilot natijasi emas.
+
+PyPI production va dev auditlari yakuniy 0 ma’lum zaiflik; npm audit 0. Dev pypdf
+6.21.1dagi 3 CVE 6.21.2ga yangilash bilan bartaraf qilindi. Gitleaks 8.30.1,
+staged tracked source: no leaks found. Tarixdagi barcha commitlar skan qilingan
+deb da’vo qilinmaydi. To‘liq scope/cheklovlar ENTERPRISE_V1_1_RELEASE.mdda.

@@ -12,7 +12,7 @@ class BIAAssessment(BaseTenantModel):
     """
     FR-05: BIA so'rovnomasi va baholash kartochkasi.
     MTPD, RTO, RPO va zaxiralash oraliqlarini saqlaydi.
-    Validatsiya: RTO <= MTPD.
+    Validatsiya: RTO < MTPD.
     """
 
     STATUS_CHOICES = [
@@ -53,6 +53,18 @@ class BIAAssessment(BaseTenantModel):
     data_source = models.TextField(blank=True)
     impact_weights = models.JSONField(default=dict, blank=True)
     recommended_values = models.JSONField(default=dict, blank=True)
+    questionnaire = models.JSONField(default=dict, blank=True)
+    evidence = models.JSONField(default=list, blank=True)
+    evidence_required = models.BooleanField(default=False)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_bias",
+    )
+    approved_snapshot = models.JSONField(default=dict, blank=True)
+    review_notes = models.TextField(blank=True)
 
     rto_seconds = models.PositiveBigIntegerField(default=0, editable=False)
     mtpd_seconds = models.PositiveBigIntegerField(default=0, editable=False)
@@ -79,9 +91,7 @@ class BIAAssessment(BaseTenantModel):
         if self.rto_hours is not None and self.mtpd_hours is not None:
             if self.rto_hours >= self.mtpd_hours:
                 raise ValidationError(
-                    {
-                        "rto_hours": f"RTO ({self.rto_hours} soat) MTPD dan ({self.mtpd_hours} soat) katta bo'lishi mumkin emas. (RTO <= MTPD talabi buzildi)."
-                    }
+                    {"rto_hours": "RTO MTPDdan qat’iy qisqa bo‘lishi kerak (RTO < MTPD)."}
                 )
 
     def save(self, *args, **kwargs):

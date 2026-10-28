@@ -1,0 +1,1 @@
+{"receiver":"riskguard-signed-relay","status":"firing","alerts":[{"fingerprint":"synthetic-example-01","startsAt":"2026-01-01T00:00:00Z","status":"firing","labels":{"alertname":"SyntheticOutage","severity":"warning"},"annotations":{"summary":"SYNTHETIC reference fixture","description":"For isolated tests only; not a real incident."}}]}

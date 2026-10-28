@@ -54,7 +54,9 @@ with sync_playwright() as p:
         ("password", "Parolni almashtirish"),
         ("wizard", "BCMS loyihalash ustasi"),
     ]:
+        page.get_by_label("Menyudan modul qidirish").fill(title)
         page.locator(".nav-item").filter(has_text=title).click()
+        page.get_by_label("Menyudan modul qidirish").fill("")
         expect(page.locator("h1")).to_have_text(title)
         page.wait_for_timeout(300)
         if page.locator('[role="alert"]').count():
@@ -95,7 +97,9 @@ with sync_playwright() as p:
             status=503, content_type="application/json", body='{"detail":"Sinov uzilishi"}'
         ),
     )
+    page.get_by_label("Menyudan modul qidirish").fill("Aktivlar")
     page.locator(".nav-item").filter(has_text="Aktivlar").click()
+    page.get_by_label("Menyudan modul qidirish").fill("")
     expect(page.get_by_role("alert")).to_contain_text("Sinov uzilishi")
     expect(page.get_by_role("button", name="Qayta urinish")).to_be_visible()
     page.unroute("**/api/v1/assets/**")

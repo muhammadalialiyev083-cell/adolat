@@ -1,0 +1,111 @@
+name: Enterprise verification
+on:
+  pull_request:
+  push:
+    branches: [main, "feat/enterprise-pilot-v1-1*"]
+permissions:
+  contents: read
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        database: [sqlite, postgres]
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: Synthetic-CI-only-password
+          POSTGRES_DB: riskguard_ci
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DEBUG: "true"
+      DATABASE_SSL_REQUIRE: "false"
+      ALLOWED_HOSTS: localhost,127.0.0.1,testserver
+      DATABASE_URL: ${{ matrix.database == 'postgres' && 'postgresql://postgres:Synthetic-CI-only-password@127.0.0.1:5432/riskguard_ci' || 'sqlite:////tmp/riskguard-ci.sqlite3' }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements*.lock
+      - run: pip install -r backend/requirements-dev.lock
+      - run: python -m ruff check backend/apps backend/bcms_backend backend/tests frontend/tests/*.py scripts/prepare_browser_fixture.py
+      - run: python backend/manage.py check
+      - run: python backend/manage.py makemigrations --check --dry-run
+      - run: python -m pytest -c backend/pytest.ini backend/tests
+      - run: python -m pip_audit -r backend/requirements-dev.lock --vulnerability-service pypi
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+        working-directory: frontend
+      - run: npm run lint && npm run typecheck && npm test && npm run build
+        working-directory: frontend
+      - run: npm audit
+        working-directory: frontend
+  browser:
+    runs-on: ubuntu-latest
+    env:
+      DEBUG: "true"
+      DATABASE_URL: sqlite:////tmp/riskguard-browser-ci.sqlite3
+      ALLOWED_HOSTS: localhost,127.0.0.1,testserver
+      BCMS_DEMO_PASSWORD: Synthetic-CI-only-password!2026
+      BCMS_E2E_PASSWORD: Synthetic-CI-only-password!2026
+      BCMS_E2E_URL: http://127.0.0.1:8000
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - run: pip install -r backend/requirements-dev.lock
+      - run: npm ci && npm run build
+        working-directory: frontend
+      - run: python -m playwright install --with-deps chromium
+      - run: python backend/manage.py migrate --noinput
+      - run: python backend/manage.py seed_demo_data
+      - run: python scripts/prepare_browser_fixture.py
+      - name: Start isolated Django
+        run: |
+          python backend/manage.py runserver 127.0.0.1:8000 --noreload > /tmp/riskguard-browser.log 2>&1 &
+          for i in $(seq 1 30); do curl --fail --silent http://127.0.0.1:8000/readyz && break; sleep 1; done
+          curl --fail http://127.0.0.1:8000/readyz
+      - name: Browser workflows
+        run: |
+          export BCMS_CHROMIUM_PATH=$(python -c 'from playwright.sync_api import sync_playwright; p=sync_playwright().start(); print(p.chromium.executable_path); p.stop()')
+          BCMS_E2E_USERNAME=demo_admin python frontend/tests/browser_smoke.py
+          BCMS_E2E_USERNAME=browser_admin python frontend/tests/enterprise_browser.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: browser-evidence
+          path: |
+            work/browser/
+            docs/screenshots/enterprise-v1-1/
+  secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Scan submitted source with Gitleaks
+        run: |
+          curl --fail --location --retry 2 https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz -o /tmp/gitleaks_8.30.1_linux_x64.tar.gz
+          curl --fail --location --retry 2 https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_checksums.txt -o /tmp/gitleaks-checksums.txt
+          cd /tmp
+          grep 'gitleaks_8.30.1_linux_x64.tar.gz$' gitleaks-checksums.txt | sha256sum --check -
+          tar -xzf gitleaks_8.30.1_linux_x64.tar.gz gitleaks
+          mkdir source-scan
+          git -C "$GITHUB_WORKSPACE" archive HEAD | tar -x -C source-scan
+          ./gitleaks dir source-scan --redact --exit-code 1
