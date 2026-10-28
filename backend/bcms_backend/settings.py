@@ -34,6 +34,7 @@ CSRF_COOKIE_HTTPONLY = True
 SESSION_COOKIE_AGE = 28800
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_REFERRER_POLICY = "same-origin"
 X_FRAME_OPTIONS = "DENY"
 
 ALLOWED_HOSTS = [
@@ -225,3 +226,22 @@ if not DEBUG and not os.environ.get("DATABASE_URL", "").startswith(
     from django.core.exceptions import ImproperlyConfigured
 
     raise ImproperlyConfigured("Production requires a PostgreSQL DATABASE_URL.")
+
+if not DEBUG:
+    from django.core.exceptions import ImproperlyConfigured
+    from urllib.parse import urlsplit
+
+    if len(SECRET_KEY) < 50 or not os.environ.get("ALLOWED_HOSTS") or any(
+        "*" in host or "://" in host for host in ALLOWED_HOSTS
+    ):
+        raise ImproperlyConfigured("Production requires a strong key and explicit exact hosts.")
+    for origin in CSRF_TRUSTED_ORIGINS + CORS_ALLOWED_ORIGINS:
+        parsed = urlsplit(origin)
+        if (
+            parsed.scheme != "https" or not parsed.hostname or "*" in origin
+            or parsed.username or parsed.password or parsed.query or parsed.fragment
+            or parsed.path not in {"", "/"}
+        ):
+            raise ImproperlyConfigured("Production origins must be exact HTTPS origins.")
+    if SESSION_COOKIE_SAMESITE not in {"Lax", "Strict", "None"}:
+        raise ImproperlyConfigured("Invalid COOKIE_SAMESITE.")

@@ -5,16 +5,12 @@ def get_client_ip(request):
     """Foydalanuvchi IP manzilini xavfsiz aniqlash."""
     if not request:
         return None
-    x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
-    if x_forwarded_for:
-        candidate = x_forwarded_for.split(",")[0].strip()
-        import ipaddress
+    import ipaddress
 
-        try:
-            return str(ipaddress.ip_address(candidate))
-        except ValueError:
-            return None
-    return request.META.get("REMOTE_ADDR")
+    try:
+        return str(ipaddress.ip_address(request.META.get("REMOTE_ADDR", "")))
+    except ValueError:
+        return None
 
 
 def record_audit(

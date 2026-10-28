@@ -8,9 +8,9 @@ from django.views.decorators.cache import never_cache
 from rest_framework import permissions, serializers, status, views
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.response import Response
-from rest_framework.throttling import AnonRateThrottle
 
 from apps.authentication.models import User
+from apps.authentication.throttling import LoginThrottle
 from apps.authentication.serializers import (
     LoginSerializer,
     UserCreateUpdateSerializer,
@@ -18,14 +18,6 @@ from apps.authentication.serializers import (
 )
 from apps.core.api import DomainPermission, TenantViewSet
 from apps.core.audit import record_audit
-
-
-class LoginThrottle(AnonRateThrottle):
-    scope = "login"
-    rate = "10/minute"
-
-    def get_cache_key(self, request, view):
-        return self.cache_format % {"scope": self.scope, "ident": self.get_ident(request)}
 
 
 @method_decorator(never_cache, name="dispatch")

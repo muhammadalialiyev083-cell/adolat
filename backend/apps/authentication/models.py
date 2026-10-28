@@ -2,6 +2,14 @@ from django.contrib.auth.models import AbstractUser
 from django.db import models
 
 
+class LoginRateBucket(models.Model):
+    """Shared atomic fixed-window counters; no submitted identity or raw IP."""
+
+    key = models.CharField(max_length=100, primary_key=True)
+    attempts = models.PositiveIntegerField(default=0)
+    expires_at = models.DateTimeField(db_index=True)
+
+
 class User(AbstractUser):
     """
     FR-01: Foydalanuvchilar va rollar.
