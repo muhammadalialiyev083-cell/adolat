@@ -40,6 +40,8 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { api, ApiError } from "./api/client";
 import { Dashboard } from "./components/Dashboard";
 import { UzHiLogo } from "./components/UzHiLogo";
+import { ImportWizard } from "./components/ImportWizard";
+import { BIAQuestionnaire } from "./components/BIAQuestionnaire";
 import { InitialSetupWizard, ModuleCatalog, ModuleMenu } from "./components/NavigationHub";
 import {
   CONFIGS,
@@ -127,6 +129,7 @@ const NAV_ITEMS: {
   frCode: string;
 }[] = [
   { key: "dashboard", label: "Boshqaruv paneli", icon: BarChart3, frCode: "" },
+  { key: "imports", label: "Excel / CSV import", icon: Database, frCode: "" },
   { key: "initial-setup", label: "Boshlang‘ich sozlash (1–4)", icon: ClipboardCheck, frCode: "" },
   { key: "menu", label: "Interaktiv menyu", icon: ListTree, frCode: "" },
   { key: "catalog", label: "Modullar katalogi", icon: FolderOpen, frCode: "" },
@@ -149,6 +152,7 @@ const NAV_ITEMS: {
     frCode: "",
   },
   { key: "bia", label: "Biznesga ta’sir (BIA)", icon: Clock, frCode: "" },
+  { key: "bia-questionnaire", label: "Dalilli BIA so‘rovnomasi", icon: ClipboardCheck, frCode: "" },
   { key: "risks", label: "Risklar reyestri", icon: AlertTriangle, frCode: "" },
   { key: "controls", label: "Nazorat choralari", icon: Shield, frCode: "" },
   {
@@ -183,8 +187,8 @@ const NAV_ITEMS: {
 ];
 
 const MENU_GROUPS = [
-  { key: "organization", label: "Tashkilot boshqaruvi", icon: Building, items: ["organizations", "departments", "users", "services", "processes", "assets"] },
-  { key: "analysis", label: "Risk va BIA tahlili", icon: AlertTriangle, items: ["dependencies", "bia", "risks", "controls"] },
+  { key: "organization", label: "Tashkilot boshqaruvi", icon: Building, items: ["organizations", "departments", "users", "services", "processes", "assets", "imports"] },
+  { key: "analysis", label: "Risk va BIA tahlili", icon: AlertTriangle, items: ["dependencies", "bia", "bia-questionnaire", "risks", "controls"] },
   { key: "recovery", label: "Tiklash va uzluksizlik", icon: RefreshCw, items: ["strategies", "resources", "schedule", "plans", "scenarios", "simulation-runs"] },
   { key: "monitoring", label: "Monitoring va audit", icon: Shield, items: ["exercises", "audit-logs", "password"] },
 ] as const;
@@ -1057,6 +1061,8 @@ export function App() {
                 <Wizard onNavigate={navigate} revision={workspaceRevision} />
               )}
               {activeTab === "dependencies" && <GraphPanel />}
+              {activeTab === "imports" && <ImportWizard user={currentUser} />}
+              {activeTab === "bia-questionnaire" && <BIAQuestionnaire user={currentUser} />}
               {activeTab === "risks" && <RiskMatrix onNavigate={navigate} />}
               {activeTab === "bia" && <BIARanking />}
               {CONFIGS[activeTab] && (

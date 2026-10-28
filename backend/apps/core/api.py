@@ -371,11 +371,16 @@ class TenantViewSet(viewsets.ModelViewSet):
 
     @transaction.atomic
     def update(self, request, *args, **kwargs):
+        # Serialize edits with approval actions, then let DRF reload the locked
+        # record so a concurrent approval cannot be overwritten by a stale draft.
+        self.get_queryset().select_for_update().get(pk=self.get_object().pk)
         return super().update(request, *args, **kwargs)
 
     def perform_create(self, serializer):
         names = {f.name for f in serializer.Meta.model._meta.fields}
         extra = {"organization": self.request.user.organization} if "organization" in names else {}
+        if "created_by" in names:
+            extra["created_by"] = self.request.user
         if (
             serializer.Meta.model.__name__ == "BusinessProcess"
             and self.request.user.role == "PROCESS_OWNER"

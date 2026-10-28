@@ -2403,3 +2403,20 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .automark-aurora,.automark-orbit-outer,.automark-orbit-inner,.automark-orbit-node,.spark-nested-list { animation: none !important; }
   .automark-feature,.automark-metric,.app-sidebar .spark-nav-link,.automark-cta-primary,.automark-cta-secondary { transition: none !important; }
 }
+
+/* Enterprise workflows share the existing UzHi tokens. */
+.enterprise-panel { padding: clamp(18px, 3vw, 32px); min-width: 0; }
+.enterprise-panel p { margin: 14px 0; color: var(--color-text-secondary); line-height: 1.65; }
+.enterprise-panel h2, .enterprise-panel h3 { color: var(--color-text-primary); }
+.enterprise-panel form { display: grid; gap: 14px; }
+.enterprise-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.enterprise-grid label { display: grid; gap: 7px; color: var(--color-text-secondary); font-size: 13px; }
+.enterprise-steps { display: flex; flex-wrap: wrap; gap: 12px; padding: 0; list-style: none; margin: 20px 0; font-size: 13px; }
+.enterprise-steps li { padding: 9px 12px; border-radius: 8px; background: var(--color-bg-secondary); }
+.enterprise-steps [aria-current] { background: #087f86; color: white; }
+.enterprise-panel .table-scroll { max-height: 430px; overflow: auto; margin: 20px 0; }
+.enterprise-panel table { border-collapse: collapse; width: 100%; font-size: 13px; }
+.enterprise-panel td, .enterprise-panel th { padding: 12px; text-align: left; border-bottom: 1px solid var(--color-border); overflow-wrap: anywhere; }
+.enterprise-panel input[type="file"] { width: 100%; }
+.enterprise-panel button { justify-self: start; }
+@media (max-width: 640px) { .enterprise-grid { grid-template-columns: minmax(0, 1fr); } .enterprise-panel { padding: 16px; } }

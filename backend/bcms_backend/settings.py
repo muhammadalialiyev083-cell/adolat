@@ -83,6 +83,7 @@ INSTALLED_APPS = [
     "apps.plans",
     "apps.simulation",
     "apps.reports",
+    "apps.imports",
 ]
 
 # ==============================
@@ -217,6 +218,9 @@ STATICFILES_DIRS = (
 )
 MEDIA_ROOT = Path(os.environ.get("MEDIA_ROOT", str(BASE_DIR / "media")))
 MEDIA_URL = "/media/"
+DATA_UPLOAD_MAX_MEMORY_SIZE = 3 * 1024 * 1024
+FILE_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024
+DATA_UPLOAD_MAX_NUMBER_FILES = 1
 
 WHITENOISE_ROOT = BASE_DIR.parent / "frontend" / "dist"
 

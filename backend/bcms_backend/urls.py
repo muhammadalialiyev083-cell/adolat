@@ -7,6 +7,7 @@ from apps.authentication.views import (
     UserViewSet,
 )
 from apps.bia.views import BIAAssessmentViewSet
+from apps.imports.views import ImportCommitView, ImportPreviewView, ImportTemplateView, ImportUploadView
 from apps.core.views import AuditLogViewSet
 from apps.engine.views import (
     EvaluateRiskAlgorithmView,
@@ -99,6 +100,10 @@ def ready(request):
 
 
 urlpatterns = [
+    path("api/v1/imports/upload", ImportUploadView.as_view()),
+    path("api/v1/imports/<uuid:pk>/preview", ImportPreviewView.as_view()),
+    path("api/v1/imports/<uuid:pk>/commit", ImportCommitView.as_view()),
+    path("api/v1/imports/templates/<str:entity>", ImportTemplateView.as_view()),
     path("api/v1/reports/risk-matrix", RiskMatrixView.as_view()),
     path("healthz", health),
     path("readyz", ready),

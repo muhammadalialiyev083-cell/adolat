@@ -85,7 +85,7 @@ async function request<T>(
   retryCSRF = true,
 ): Promise<T> {
   const headers = new Headers(options.headers || {});
-  headers.set("Content-Type", "application/json");
+  if (!(options.body instanceof FormData)) headers.set("Content-Type", "application/json");
   const method = (options.method || "GET").toUpperCase();
   const mutating = ["POST", "PUT", "PATCH", "DELETE"].includes(method);
 
@@ -140,6 +140,16 @@ async function request<T>(
 }
 
 export const api = {
+  uploadImport: (entity: string, file: File) => {
+    const body = new FormData();
+    body.append("entity", entity);
+    body.append("file", file);
+    return request<any>("/imports/upload", { method: "POST", body });
+  },
+  previewImport: (id: string, mapping: Record<string, string>) =>
+    request<any>(`/imports/${id}/preview`, { method: "POST", body: JSON.stringify({ mapping }) }),
+  commitImport: (id: string, decisions: Record<string, string>) =>
+    request<any>(`/imports/${id}/commit`, { method: "POST", body: JSON.stringify({ confirm: true, decisions }) }),
   riskMatrix: () => request<any>("/reports/risk-matrix"),
   list: (resource: string, query = "") =>
     request<{ count: number; results: any[]; next: string | null }>(

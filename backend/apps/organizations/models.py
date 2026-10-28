@@ -10,6 +10,7 @@ class Organization(models.Model):
 
     name = models.CharField(max_length=255, unique=True)
     is_demo = models.BooleanField(default=False)
+    separation_of_duties = models.BooleanField(default=False)
     contact_details = models.TextField(blank=True)
     recovery_budget = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
     sector = models.CharField(

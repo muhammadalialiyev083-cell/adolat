@@ -34,6 +34,10 @@ class ContinuityPlanViewSet(TenantViewSet):
         plan = self.get_queryset().select_for_update().get(pk=self.get_object().pk)
         if plan.status not in ("DRAFT", "IN_REVIEW", "APPROVED"):
             raise ValidationError({"status": "Bu holatdan e’lon qilish mumkin emas."})
+        if plan.organization.separation_of_duties and (
+            not plan.created_by_id or request.user.pk in {plan.created_by_id, plan.process.owner_id}
+        ):
+            raise ValidationError({"approval": "Mustaqil tasdiqlovchi va ma’lum muallif talab qilinadi."})
         bia = (
             plan.process.bia_assessments.filter(is_deleted=False)
             .order_by("-revision", "-id")
@@ -126,7 +130,7 @@ class ContinuityPlanViewSet(TenantViewSet):
         data.update(status="DRAFT", version=f"{version_number}.0")
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
-        plan = serializer.save(organization=request.user.organization, previous_version=original)
+        plan = serializer.save(organization=request.user.organization, previous_version=original, created_by=request.user)
         record_audit(
             request,
             action="CREATE",
