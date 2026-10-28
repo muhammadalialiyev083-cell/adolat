@@ -13,6 +13,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { api } from "../api/client";
+import { UzHiLogo } from "./UzHiLogo";
 
 export function Dashboard({
   onNavigate,
@@ -77,7 +78,8 @@ export function Dashboard({
         <div className="automark-aurora aurora-two" aria-hidden="true"/>
         <div className="automark-hero-main">
           <motion.div {...rise(0.03)}>
-            <span className="automark-eyebrow"><Sparkles size={15}/> UzHi · Business Continuity Management</span>
+            <UzHiLogo className="uzhi-logo-hero" />
+            <span className="automark-eyebrow"><Sparkles size={15}/> Business Continuity Management</span>
             <h2>Har bir xavfga <span>tayyor bo‘ling.</span><br/>Har bir jarayonni <span>uzluksiz saqlang.</span></h2>
             <p>Tashkilot risklarini aniqlang, biznesga ta’sirini baholang va tiklash rejalarini yagona boshqaruv muhitida shakllantiring.</p>
             <div className="automark-hero-actions">

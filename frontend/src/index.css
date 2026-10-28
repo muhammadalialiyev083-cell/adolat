@@ -2069,32 +2069,96 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   padding: 18px 2px;
   border-bottom: 1px solid rgba(255,255,255,.1);
 }
-.spark-brand-button {
-  display: flex;
+/* UzHi: shield + infinity and the complete expanding wordmark. */
+@font-face {
+  font-family: "Plus Jakarta Sans";
+  font-style: normal;
+  font-weight: 600 800;
+  font-display: swap;
+  src: url("/fonts/plus-jakarta-sans-latin-wght-normal.woff2") format("woff2");
+}
+.uzhi-logo {
+  display: inline-flex;
   align-items: center;
+  gap: 14px;
   min-width: 0;
-  gap: 10px;
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
   background: transparent;
   color: #fff;
-  border: 0;
+  font-family: "Plus Jakarta Sans", sans-serif !important;
   text-align: left;
   cursor: pointer;
+  user-select: none;
 }
-.spark-brand-symbol {
-  display: grid;
-  flex-shrink: 0;
-  place-items: center;
-  width: 39px;
-  height: 39px;
-  border-radius: 12px;
-  background: linear-gradient(145deg,#146ab7,#17b99a);
-  box-shadow: 0 8px 24px rgba(14,184,160,.22);
-  color: white;
+.uzhi-logo-mark { display: block; flex: 0 0 auto; }
+.uzhi-logo-copy { display: flex; flex-direction: column; min-width: 0; }
+.uzhi-wordmark {
+  display: inline-flex;
+  align-items: baseline;
+  font-size: 28px;
+  font-weight: 800;
+  line-height: 1.3;
+  letter-spacing: -.02em;
+  white-space: nowrap;
 }
-.spark-brand-copy { display: flex; flex-direction: column; overflow: hidden; }
-.spark-brand-copy strong { white-space: nowrap; font-size: 16px; letter-spacing: -.04em; }
-.spark-brand-copy strong span { font-weight: 500; font-size: 11px; color: #88d8d3; letter-spacing: 0; }
-.spark-brand-copy small { font-size: 10px; color: #a4b9c9; white-space: nowrap; }
+.uz-part { color: #fff; }
+.hi-part {
+  color: #00d2d3;
+  background: linear-gradient(135deg, #5ffbf1 0%, #00d2d3 55%, #0891b2 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.uzhi-expand {
+  display: inline-block;
+  overflow: hidden;
+  white-space: nowrap;
+  max-width: 0;
+  opacity: 0;
+  margin-right: 0;
+  transform: translateX(-6px);
+  transition: max-width .65s cubic-bezier(.22,1,.36,1), opacity .65s cubic-bezier(.22,1,.36,1), transform .65s cubic-bezier(.22,1,.36,1), margin-right .65s cubic-bezier(.22,1,.36,1);
+}
+.uzhi-expand-uz { color: #e2e8f0; }
+.uzhi-expand-hi { color: #00d2d3; }
+.uzhi-logo:is(.active, :focus-visible) .uzhi-expand { opacity: 1; transform: translateX(0); }
+.uzhi-logo:is(.active, :focus-visible) .uzhi-expand-uz { max-width: 4.6em; margin-right: .25em; }
+.uzhi-logo:is(.active, :focus-visible) .uzhi-expand-hi { max-width: 3.6em; }
+@media (hover: hover) {
+  .uzhi-logo:hover .uzhi-expand { opacity: 1; transform: translateX(0); }
+  .uzhi-logo:hover .uzhi-expand-uz { max-width: 4.6em; margin-right: .25em; }
+  .uzhi-logo:hover .uzhi-expand-hi { max-width: 3.6em; }
+}
+.uzhi-tagline {
+  margin-top: 2px;
+  font-size: 10px;
+  line-height: 1.6;
+  letter-spacing: .18em;
+  color: #94a3b8;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.uzhi-logo-hero { margin-bottom: 22px; }
+.uzhi-logo-sidebar { flex: 1; gap: 8px; }
+.uzhi-logo-sidebar .uzhi-logo-mark { width: 32px; height: 32px; }
+.uzhi-logo-sidebar .uzhi-wordmark { font-size: 18px; }
+.uzhi-logo-sidebar .uzhi-tagline { font-size: 7px; letter-spacing: .06em; }
+@media (min-width: 769px) {
+  .sidebar-collapsed .uzhi-logo-sidebar { flex: none; }
+  .sidebar-collapsed .uzhi-logo-sidebar .uzhi-logo-copy { display: none; }
+}
+@media (max-width: 520px) {
+  .uzhi-logo-hero { gap: 10px; }
+  .uzhi-logo-hero .uzhi-logo-mark { width: 40px; height: 40px; }
+  .uzhi-logo-hero .uzhi-wordmark { font-size: clamp(18px, 5.8vw, 28px); }
+  .uzhi-logo-hero .uzhi-tagline { font-size: 8px; letter-spacing: .1em; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .uzhi-expand { transition: none; }
+}
 .spark-sidebar-collapse {
   flex-shrink: 0;
   display: grid;
@@ -2191,7 +2255,6 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .spark-search-empty { font-size: 12px; padding: 9px; color: #bcd0db; }
 .sidebar-collapsed .spark-sidebar-brand { justify-content: center; flex-direction: column; padding: 14px 0; }
 .sidebar-collapsed .spark-sidebar-collapse { margin-top: 2px; }
-.sidebar-collapsed .spark-brand-copy,
 .sidebar-collapsed .spark-nav-search,
 .sidebar-collapsed .spark-nav-label,
 .sidebar-collapsed .spark-group-chevron,
@@ -2317,7 +2380,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .spark-mobile-backdrop { display: block; position: fixed; inset: 0; border: 0; background: rgba(5,22,37,.55); z-index: 150; cursor: pointer; }
   .app-sidebar > .spark-sidebar-brand { display: flex !important; }
   .app-sidebar > .spark-nav-search { display: flex !important; }
-  .sidebar-collapsed .spark-brand-copy, .sidebar-collapsed .spark-nav-label,
+  .sidebar-collapsed .spark-nav-label,
   .sidebar-collapsed .spark-group-chevron, .sidebar-collapsed .spark-nav-search,
   .sidebar-collapsed .spark-sidebar-bottom, .sidebar-collapsed .spark-sidebar .nav-section-label { display: flex; }
   .sidebar-collapsed .spark-sidebar-brand { flex-direction: row; justify-content: space-between; }

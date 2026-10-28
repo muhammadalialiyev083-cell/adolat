@@ -39,6 +39,7 @@ import {
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { api, ApiError } from "./api/client";
 import { Dashboard } from "./components/Dashboard";
+import { UzHiLogo } from "./components/UzHiLogo";
 import { InitialSetupWizard, ModuleCatalog, ModuleMenu } from "./components/NavigationHub";
 import {
   CONFIGS,
@@ -252,10 +253,7 @@ function Sidebar({
       aria-label="Asosiy navigatsiya"
     >
       <div className="spark-sidebar-brand">
-        <button type="button" className="spark-brand-button" onClick={() => navigateTo("dashboard")} title="Boshqaruv paneli">
-          <span className="spark-brand-symbol"><Shield size={21} /></span>
-          <span className="spark-brand-copy"><strong>UzHi <span>RiskGuard</span></strong><small>Biznes uzluksizligi platformasi</small></span>
-        </button>
+        <UzHiLogo className="uzhi-logo-sidebar" onActivate={collapsed && !mobileOpen ? onToggleCollapse : undefined} />
         <button type="button" className="spark-sidebar-collapse" aria-label={collapsed ? "Menyuni kengaytirish" : "Menyuni yig‘ish"} title={collapsed ? "Menyuni kengaytirish" : "Menyuni yig‘ish"} onClick={onToggleCollapse}>
           {collapsed ? <PanelLeftOpen size={17}/> : <PanelLeftClose size={17}/>}
         </button>
